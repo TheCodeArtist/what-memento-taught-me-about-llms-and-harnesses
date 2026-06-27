@@ -1,0 +1,3984 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="What Memento taught me about LLM context, chat history, and harnesses.">
+  <title>What Memento Taught Me About LLMs and Harnesses</title>
+  <style>
+    :root {
+      --ink: #17202a;
+      --muted: #5e6b79;
+      --paper: #f6f8fb;
+      --panel: #ffffff;
+      --panel-2: #f0f4f8;
+      --line: #d7dfe8;
+      --line-strong: #afbac7;
+      --blue: #246bfe;
+      --green: #0d8b5f;
+      --nvidia-green: #76b900;
+      --amber: #cc7a00;
+      --red: #c43d3d;
+      --violet: #6651d6;
+      --slate: #27323f;
+      --shadow: 0 18px 46px rgba(23, 32, 42, 0.12);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--ink);
+      background: var(--paper);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      overflow-x: hidden;
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.92), rgba(246,248,251,0.98)),
+        linear-gradient(90deg, rgba(36,107,254,0.05), transparent 32%, rgba(13,139,95,0.05) 70%, transparent),
+        var(--paper);
+    }
+
+    button {
+      font: inherit;
+      border: 0;
+      cursor: pointer;
+    }
+
+    pre,
+    code {
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+    }
+
+    .deck {
+      width: 100%;
+      min-width: 0;
+      height: 100vh;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      overflow: hidden;
+    }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 14px clamp(16px, 3vw, 34px);
+      border-bottom: 1px solid var(--line);
+      background: rgba(255,255,255,0.9);
+      backdrop-filter: blur(10px);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+      font-weight: 760;
+      color: #142235;
+    }
+
+    .brand-mark {
+      width: 34px;
+      height: 34px;
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+      background: #142235;
+      color: #fff;
+      font-size: 14px;
+      font-weight: 820;
+      flex: 0 0 auto;
+    }
+
+    .progress-wrap {
+      min-width: 150px;
+      max-width: 420px;
+      flex: 1;
+      height: 8px;
+      border-radius: 999px;
+      overflow: hidden;
+      background: #e4eaf1;
+    }
+
+    .progress {
+      width: 0;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--blue), var(--green));
+      transition: width 180ms ease;
+    }
+
+    .slide-count {
+      color: var(--muted);
+      font-size: 14px;
+      white-space: nowrap;
+    }
+
+    .topbar-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .settings-btn {
+      min-height: 36px;
+      padding: 0 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      color: var(--ink);
+      background: #fff;
+      font-size: 13px;
+      font-weight: 720;
+      white-space: nowrap;
+    }
+
+    .api-dialog {
+      width: min(520px, calc(100vw - 28px));
+      padding: 0;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      color: var(--ink);
+      background: var(--panel);
+      box-shadow: var(--shadow);
+    }
+
+    .api-dialog::backdrop {
+      background: rgba(23, 32, 42, 0.56);
+    }
+
+    .api-dialog-form {
+      display: grid;
+      gap: 18px;
+      padding: 24px;
+    }
+
+    .api-dialog-head {
+      display: flex;
+      align-items: start;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .api-dialog h2 {
+      margin: 0;
+      font-size: 24px;
+      line-height: 1.15;
+    }
+
+    .api-dialog-copy,
+    .api-dialog-note {
+      margin: 6px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .api-dialog-fields {
+      display: grid;
+      gap: 14px;
+    }
+
+    .api-field {
+      display: grid;
+      gap: 6px;
+      color: var(--slate);
+      font-size: 13px;
+      font-weight: 720;
+    }
+
+    .api-field input {
+      width: 100%;
+      min-height: 42px;
+      padding: 9px 11px;
+      border: 1px solid var(--line-strong);
+      border-radius: 6px;
+      color: var(--ink);
+      background: #fff;
+      font: 500 14px/1.3 "SFMono-Regular", Consolas, monospace;
+    }
+
+    .api-field input:focus {
+      outline: 3px solid rgba(36, 107, 254, 0.2);
+      border-color: var(--blue);
+    }
+
+    .api-dialog-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+    }
+
+    .dialog-btn {
+      min-height: 40px;
+      padding: 0 14px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      color: var(--ink);
+      background: #fff;
+      font-weight: 740;
+    }
+
+    .dialog-btn.primary {
+      border-color: var(--blue);
+      color: #fff;
+      background: var(--blue);
+    }
+
+    .dialog-close {
+      width: 38px;
+      min-width: 38px;
+      padding: 0;
+      font-size: 20px;
+      line-height: 1;
+    }
+
+    .slides {
+      position: relative;
+      width: 100%;
+      min-width: 0;
+      min-height: 0;
+      overflow: auto;
+    }
+
+    .slide {
+      display: none;
+      width: 100%;
+      min-width: 0;
+      min-height: 100%;
+      padding: clamp(20px, 3vh, 42px) clamp(20px, 5vw, 82px);
+    }
+
+    .slide:has(.demo-shell) {
+      height: 100%;
+      min-height: 0;
+      padding-top: clamp(14px, 2vh, 24px);
+      padding-bottom: clamp(14px, 2vh, 24px);
+    }
+
+    .slide.active {
+      display: block;
+    }
+
+    .slide-inner {
+      width: min(1640px, 100%);
+      min-width: 0;
+      max-width: 100%;
+      margin: 0 auto;
+    }
+
+    .slide-inner:has(.demo-shell) {
+      height: 100%;
+      min-height: 0;
+      display: grid;
+      grid-template-columns: minmax(420px, 0.92fr) minmax(520px, 1.08fr);
+      grid-template-rows: auto auto minmax(0, 1fr);
+      gap: 16px clamp(20px, 3vw, 44px);
+      align-items: stretch;
+    }
+
+    .slide-inner:has(.demo-shell):not(:has(.scenario-controls)) {
+      grid-template-rows: auto minmax(0, 1fr);
+    }
+
+    .slide-inner:has(.demo-shell) .slide-title {
+      grid-column: 1;
+      grid-row: 1;
+      margin-bottom: 0;
+    }
+
+    .slide-inner:has(.demo-shell) .scenario-controls {
+      grid-column: 1;
+      grid-row: 2;
+      margin: 0;
+    }
+
+    .slide-inner:has(.demo-shell) .demo-shell {
+      display: contents;
+    }
+
+    .slide-inner:has(.demo-shell) .chat-card {
+      grid-column: 1;
+      grid-row: 3;
+      align-self: stretch;
+      position: sticky;
+      top: clamp(14px, 2vh, 24px);
+      height: 100%;
+      min-height: 0;
+    }
+
+    .slide-inner:has(.demo-shell):not(:has(.scenario-controls)) .chat-card {
+      grid-row: 2;
+    }
+
+    .slide-inner:has(.demo-shell) .log-panel {
+      grid-column: 2;
+      grid-row: 1 / -1;
+      align-self: stretch;
+      justify-self: end;
+      width: 75%;
+      height: 100%;
+      min-height: 0;
+      transform: translateX(clamp(0px, calc((100vw - 1640px) / 2 - 32px), 160px));
+    }
+
+    .slide-title {
+      display: grid;
+      gap: 10px;
+      min-width: 0;
+      max-width: 1120px;
+      margin-bottom: clamp(20px, 4vh, 36px);
+    }
+
+    .eyebrow {
+      color: var(--green);
+      font-size: 13px;
+      font-weight: 820;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    h1,
+    h2,
+    h3 {
+      margin: 0;
+      line-height: 1.06;
+      color: #122033;
+      letter-spacing: 0;
+    }
+
+    h1 {
+      font-size: clamp(46px, 5vw, 86px);
+      max-width: 1180px;
+    }
+
+    h2 {
+      font-size: clamp(34px, 3.5vw, 62px);
+    }
+
+    h3 {
+      font-size: 18px;
+    }
+
+    .lead {
+      max-width: 980px;
+      margin: 0;
+      color: var(--muted);
+      font-size: clamp(19px, 1.7vw, 27px);
+      line-height: 1.42;
+    }
+
+    .demo-shell {
+      display: grid;
+      grid-template-columns: minmax(460px, 1.05fr) minmax(360px, 0.95fr);
+      gap: clamp(18px, 2.8vw, 36px);
+      align-items: start;
+    }
+
+    .demo-shell > * {
+      min-width: 0;
+    }
+
+    .chat-card,
+    .log-panel,
+    .principle-card,
+    .packet-board,
+    .compare-panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+    }
+
+    .chat-card,
+    .log-panel {
+      position: relative;
+      display: grid;
+      width: 100%;
+      min-height: 0;
+      min-width: 0;
+      max-width: 100%;
+      overflow: hidden;
+      border-color: #aab6c4;
+      background: #eef3f8;
+      box-shadow:
+        0 34px 70px rgba(23, 32, 42, 0.24),
+        0 12px 26px rgba(23, 32, 42, 0.16),
+        inset 0 1px 0 rgba(255, 255, 255, 0.9);
+      isolation: isolate;
+    }
+
+    .chat-card {
+      height: clamp(360px, 46vh, 500px);
+      grid-template-rows: auto minmax(0, 1fr) auto;
+    }
+
+    .log-panel {
+      min-height: 430px;
+      grid-template-rows: auto auto minmax(0, 1fr);
+      border-color: #9aaaba;
+      background: #edf2f6;
+    }
+
+    .chat-card::before,
+    .log-panel::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      z-index: 2;
+      pointer-events: none;
+      border-radius: inherit;
+      box-shadow:
+        inset 0 0 0 1px rgba(255, 255, 255, 0.5),
+        inset 0 -1px 0 rgba(23, 32, 42, 0.08);
+    }
+
+    .chat-head,
+    .log-head {
+      min-height: 46px;
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      gap: 10px;
+      min-width: 0;
+      padding: 8px 14px;
+      border-bottom: 1px solid rgba(23, 32, 42, 0.3);
+    }
+
+    .chat-head {
+      border-bottom-color: #173e79;
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.16), rgba(255,255,255,0)),
+        linear-gradient(180deg, #2c6ec8 0%, #22549d 100%);
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,0.32),
+        0 1px 0 rgba(255,255,255,0.28);
+    }
+
+    .log-head {
+      border-bottom-color: #153746;
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.13), rgba(255,255,255,0)),
+        linear-gradient(180deg, #3d6672 0%, #284a57 100%);
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,0.28),
+        0 1px 0 rgba(255,255,255,0.24);
+    }
+
+    .window-dots {
+      display: flex;
+      gap: 6px;
+      flex: 0 0 auto;
+      padding-right: 2px;
+    }
+
+    .window-dots span {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #b5c0cc;
+      border: 1px solid rgba(8, 17, 27, 0.35);
+      box-shadow:
+        inset 0 1px 1px rgba(255, 255, 255, 0.68),
+        0 1px 1px rgba(8, 17, 27, 0.2);
+    }
+
+    .window-dots span:nth-child(1) {
+      background: #e86a65;
+    }
+
+    .window-dots span:nth-child(2) {
+      background: #efbd4a;
+    }
+
+    .window-dots span:nth-child(3) {
+      background: #66b46d;
+    }
+
+    .chat-title,
+    .log-title {
+      min-width: 0;
+      flex: 1 1 auto;
+      display: grid;
+      gap: 0;
+      overflow: hidden;
+    }
+
+    .chat-title strong,
+    .log-title strong {
+      font-size: 13px;
+      color: #fff;
+      line-height: 1.12;
+    }
+
+    .chat-title span,
+    .log-title span {
+      display: block;
+      min-width: 0;
+      max-width: 100%;
+      color: rgba(255, 255, 255, 0.78);
+      font-size: 11px;
+      line-height: 1.25;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .chat-thread {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      min-height: 0;
+      margin: 12px;
+      padding: 18px;
+      overflow: auto;
+      overflow-anchor: none;
+      scroll-behavior: smooth;
+      border: 1px solid #d2dbe6;
+      border-radius: 8px;
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.9), rgba(246,249,252,0.62)),
+        radial-gradient(circle at top left, rgba(36,107,254,0.08), transparent 34%),
+        #f3f6fa;
+      box-shadow:
+        inset 0 1px 4px rgba(23, 32, 42, 0.08),
+        0 1px 0 rgba(255,255,255,0.7);
+    }
+
+    .message-row {
+      display: grid;
+      grid-template-columns: 34px minmax(0, 1fr);
+      gap: 10px;
+      align-items: end;
+      min-width: 0;
+      width: min(100%, 720px);
+      max-width: 94%;
+    }
+
+    .message-row[data-log-target] {
+      cursor: pointer;
+    }
+
+    .message-row[data-log-target]:hover .bubble,
+    .message-row[data-log-target]:focus-visible .bubble {
+      border-color: #f5b942;
+      outline: 3px solid rgba(245, 185, 66, 0.26);
+      outline-offset: 2px;
+    }
+
+    .message-row[data-log-target]:focus-visible {
+      outline: none;
+    }
+
+    .message-row.is-entering {
+      animation: message-in 280ms ease-out both;
+    }
+
+    @keyframes message-in {
+      from {
+        opacity: 0;
+        transform: translateY(8px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .chat-thread {
+        scroll-behavior: auto;
+      }
+
+      .message-row.is-entering {
+        animation: none;
+      }
+    }
+
+    .message-row.assistant,
+    .message-row.tool-call {
+      align-self: flex-start;
+    }
+
+    .message-row.user {
+      align-self: flex-end;
+      grid-template-columns: minmax(0, 1fr) 34px;
+    }
+
+    .message-row.system,
+    .message-row.note,
+    .message-row.tool-response {
+      align-self: center;
+      grid-template-columns: minmax(0, 1fr);
+      width: min(100%, 680px);
+      max-width: 94%;
+    }
+
+    .avatar {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      flex: 0 0 auto;
+      font-size: 12px;
+      font-weight: 820;
+      background: #dce4ee;
+      color: #263548;
+    }
+
+    .user .avatar {
+      background: #d9ecff;
+      color: #17446f;
+      border: 1px solid #9cc9f3;
+    }
+
+    .assistant .avatar,
+    .tool-call .avatar {
+      background: #0f5132;
+      color: #fff;
+      border: 1px solid #0a3622;
+    }
+
+    .system .avatar,
+    .note .avatar,
+    .tool-response .avatar {
+      display: none;
+    }
+
+    .bubble {
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+      min-width: 0;
+      max-width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 12px 14px;
+      background: #fff;
+      color: #1d2937;
+      line-height: 1.42;
+      font-size: 15px;
+      overflow-wrap: anywhere;
+      white-space: normal;
+      box-shadow: 0 1px 2px rgba(23, 32, 42, 0.06);
+    }
+
+    .bubble-body {
+      display: block;
+      width: 100%;
+      min-width: 0;
+      white-space: pre-wrap;
+    }
+
+    .bubble-relation {
+      display: inline-flex;
+      align-items: center;
+      align-self: flex-start;
+      width: max-content;
+      max-width: 100%;
+      color: #64748b;
+      font-size: 10.5px;
+      font-weight: 760;
+      line-height: 1.2;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .user .bubble-relation {
+      align-self: flex-end;
+      color: #315f8b;
+    }
+
+    .user .avatar {
+      grid-column: 2;
+      grid-row: 1;
+      align-self: end;
+    }
+
+    .assistant .avatar,
+    .tool-call .avatar {
+      grid-column: 1;
+      grid-row: 1;
+      align-self: end;
+    }
+
+    .user .bubble {
+      grid-column: 1;
+      grid-row: 1;
+      justify-self: end;
+    }
+
+    .assistant .bubble,
+    .tool-call .bubble {
+      grid-column: 2;
+      grid-row: 1;
+      justify-self: start;
+    }
+
+    .system .bubble,
+    .note .bubble,
+    .tool-response .bubble {
+      grid-column: 1;
+      grid-row: 1;
+      justify-self: center;
+      width: fit-content;
+      max-width: 100%;
+    }
+
+    .assistant .bubble {
+      background: #edfdf3;
+      border-color: #acd9bd;
+      color: #123a2a;
+    }
+
+    .user .bubble {
+      background: #dceeff;
+      border-color: #b8d8f4;
+      color: #16324f;
+    }
+
+    .system .bubble,
+    .note .bubble {
+      max-width: 100%;
+      color: #64748b;
+      background: rgba(248, 250, 252, 0.78);
+      border-color: #d8e1ec;
+      font-size: 12.5px;
+      font-weight: 500;
+      text-align: left;
+      padding: 8px 10px;
+      box-shadow: none;
+    }
+
+    .note .bubble {
+      color: #64748b;
+      background: rgba(248, 250, 252, 0.68);
+      border-color: #d8e1ec;
+      font-style: italic;
+      font-weight: 500;
+      padding: 8px 10px;
+      box-shadow: none;
+    }
+
+    .tool-call .bubble,
+    .tool-response .bubble {
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+      font-size: 11.5px;
+      line-height: 1.36;
+      padding: 10px 12px;
+      color: #123a2a;
+      background: #f4fff8;
+      border-color: #9fd7b6;
+      box-shadow:
+        0 1px 2px rgba(23, 32, 42, 0.06),
+        inset 4px 0 0 rgba(15, 81, 50, 0.72);
+    }
+
+    .tool-response .bubble {
+      color: #64748b;
+      background: rgba(248, 250, 252, 0.72);
+      border-color: #d8e1ec;
+      font-style: italic;
+      font-size: 11px;
+      line-height: 1.32;
+      padding: 8px 10px;
+      box-shadow: none;
+    }
+
+    .tool-call .bubble-label,
+    .tool-response .bubble-label {
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      letter-spacing: 0.06em;
+    }
+
+    .bubble-label {
+      display: inline-flex;
+      align-items: center;
+      align-self: flex-start;
+      width: max-content;
+      max-width: 100%;
+      padding: 3px 7px;
+      border-radius: 5px;
+      font-size: 11px;
+      font-weight: 820;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #263548;
+      background: #e2e8f0;
+      border: 1px solid rgba(38, 53, 72, 0.12);
+    }
+
+    .user .bubble-label {
+      align-self: flex-end;
+    }
+
+    .system .bubble-label,
+    .note .bubble-label,
+    .tool-response .bubble-label {
+      align-self: center;
+    }
+
+    .user .bubble-label {
+      color: #17446f;
+      background: #b8d8f4;
+      border-color: #95c4ef;
+    }
+
+    .assistant .bubble-label,
+    .tool-call .bubble-label {
+      color: #0f5132;
+      background: #bbebcb;
+      border-color: #96d4ad;
+    }
+
+    .system .bubble-label,
+    .note .bubble-label,
+    .tool-response .bubble-label {
+      color: #64748b;
+      background: #eef2f7;
+      border-color: #d8e1ec;
+      font-size: 10.5px;
+      font-style: normal;
+      font-weight: 720;
+      padding: 2px 6px;
+    }
+
+    .composer {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      padding: 12px 14px 14px;
+      border-top: 1px solid #b7c2cf;
+      background:
+        linear-gradient(180deg, #f9fbfd, #edf3f8);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.78);
+    }
+
+    .fake-input {
+      min-height: 44px;
+      display: flex;
+      align-items: center;
+      padding: 10px 12px;
+      border: 1px solid #c9d3df;
+      border-radius: 8px;
+      color: #122033;
+      background: #fff;
+      caret-color: var(--blue);
+      cursor: text;
+      outline: none;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      box-shadow: inset 0 1px 2px rgba(23, 32, 42, 0.06);
+    }
+
+    .fake-input:focus {
+      border-color: var(--blue);
+      box-shadow:
+        0 0 0 3px rgba(36, 107, 254, 0.16),
+        inset 0 1px 2px rgba(23, 32, 42, 0.06);
+    }
+
+    .fake-input.submitted {
+      color: transparent;
+      caret-color: transparent;
+      cursor: default;
+    }
+
+    .input-notice {
+      grid-column: 1 / -1;
+      display: none;
+      align-items: center;
+      min-height: 30px;
+      padding: 7px 9px;
+      border: 1px solid #eccf9a;
+      border-radius: 8px;
+      color: #744c10;
+      background: #fff7e6;
+      font-size: 12px;
+      font-weight: 680;
+      line-height: 1.35;
+    }
+
+    .input-notice.show {
+      display: flex;
+    }
+
+    .send-btn,
+    .nav-btn,
+    .step-btn {
+      min-height: 42px;
+      border-radius: 8px;
+      padding: 0 14px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      background: var(--nvidia-green);
+      color: #fff;
+      font-weight: 760;
+    }
+
+    .send-btn {
+      min-width: 50px;
+      width: 50px;
+      padding: 0;
+      position: relative;
+    }
+
+    .send-btn svg {
+      width: 19px;
+      height: 19px;
+      stroke-width: 2.2;
+    }
+
+    .send-btn:disabled {
+      cursor: default;
+      opacity: 0.46;
+    }
+
+    .send-btn[data-tooltip]:disabled:hover::after {
+      content: attr(data-tooltip);
+      position: absolute;
+      right: 0;
+      bottom: calc(100% + 9px);
+      z-index: 12;
+      width: max-content;
+      max-width: min(280px, 72vw);
+      padding: 8px 10px;
+      border-radius: 8px;
+      color: #fff;
+      background: #17202a;
+      box-shadow: 0 8px 20px rgba(23, 32, 42, 0.18);
+      font-size: 12px;
+      font-weight: 700;
+      line-height: 1.3;
+      text-align: left;
+      white-space: normal;
+      pointer-events: none;
+    }
+
+    .state-caption {
+      display: grid;
+      gap: 8px;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--line);
+      background: #fff;
+    }
+
+    .state-caption strong {
+      color: #122033;
+      font-size: 16px;
+    }
+
+    .state-caption span {
+      color: var(--muted);
+      line-height: 1.4;
+      font-size: 14px;
+    }
+
+    .log-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      min-height: 0;
+      padding: 14px;
+      position: relative;
+      overflow: auto;
+      overscroll-behavior: contain;
+      scrollbar-gutter: stable;
+      scrollbar-width: thin;
+      scrollbar-color: #9aaaba #e5ebf1;
+      background: #f4f7fa;
+    }
+
+    .log-list::-webkit-scrollbar {
+      width: 12px;
+    }
+
+    .log-list::-webkit-scrollbar-track {
+      background: #e5ebf1;
+      border-left: 1px solid #cbd5df;
+    }
+
+    .log-list::-webkit-scrollbar-thumb {
+      border: 3px solid #e5ebf1;
+      border-radius: 999px;
+      background: #9aaaba;
+    }
+
+    .log-scroll-shade {
+      position: absolute;
+      left: 0;
+      right: 0;
+      height: 64px;
+      z-index: 4;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 160ms ease;
+    }
+
+    .log-scroll-shade.top {
+      top: var(--log-scroll-top, 0px);
+      background: linear-gradient(180deg, rgba(18, 32, 48, 0.24), rgba(18, 32, 48, 0));
+    }
+
+    .log-scroll-shade.bottom {
+      bottom: 0;
+      background: linear-gradient(0deg, rgba(18, 32, 48, 0.24), rgba(18, 32, 48, 0));
+    }
+
+    .log-list.has-scroll-above ~ .log-scroll-shade.top,
+    .log-list.has-scroll-below ~ .log-scroll-shade.bottom {
+      opacity: 1;
+    }
+
+    .log-entry {
+      flex: 0 0 auto;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      overflow: hidden;
+    }
+
+    .log-entry.flash {
+      animation: logFlash 1250ms ease-out;
+    }
+
+    @keyframes logFlash {
+      0% {
+        border-color: #f5b942;
+        background: #fff7df;
+        box-shadow: 0 0 0 4px rgba(245, 185, 66, 0.34);
+      }
+      70% {
+        border-color: #f5b942;
+        background: #fff;
+        box-shadow: 0 0 0 4px rgba(245, 185, 66, 0);
+      }
+      100% {
+        box-shadow: none;
+      }
+    }
+
+    .log-entry[open] {
+      border-color: var(--line-strong);
+    }
+
+    .log-entry summary {
+      list-style: none;
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      align-items: center;
+      gap: 10px;
+      padding: 12px;
+      cursor: pointer;
+    }
+
+    .log-entry summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .log-entry summary::after {
+      content: "+";
+      color: var(--muted);
+      font-weight: 820;
+    }
+
+    .log-entry[open] summary::after {
+      content: "-";
+    }
+
+    .log-badge {
+      border-radius: 999px;
+      padding: 4px 8px;
+      color: #fff;
+      background: var(--slate);
+      font-size: 11px;
+      font-weight: 820;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      white-space: nowrap;
+    }
+
+    .log-entry.api .log-badge {
+      background: var(--blue);
+    }
+
+    .log-entry.tool .log-badge {
+      background: var(--green);
+    }
+
+    .log-entry.prompt .log-badge {
+      background: var(--violet);
+    }
+
+    .log-entry.warning .log-badge {
+      background: var(--amber);
+    }
+
+    .log-entry.diff .log-badge {
+      background: var(--red);
+    }
+
+    .log-entry.waiting {
+      border-color: #bdc8d4;
+      background: #f9fbfd;
+    }
+
+    .log-entry.waiting[open] {
+      border-color: #8fa1b3;
+    }
+
+    .log-entry.waiting .log-badge {
+      color: #314255;
+      background: #e7edf3;
+      border: 1px solid #bdc8d4;
+    }
+
+    .log-entry.waiting summary strong {
+      color: #405066;
+    }
+
+    .log-entry summary strong {
+      min-width: 0;
+      color: #1a2635;
+      font-size: 13px;
+      line-height: 1.25;
+    }
+
+    .log-entry pre {
+      margin: 0;
+      padding: 0 12px 12px 12px;
+      color: #243040;
+      font-size: 12px;
+      line-height: 1.48;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+
+    .scenario-controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin: 0 0 16px;
+    }
+
+    .step-btn {
+      background: #fff;
+      color: #17202a;
+      border: 1px solid var(--line);
+      min-height: 40px;
+      font-weight: 720;
+    }
+
+    .step-btn.active {
+      background: var(--nvidia-green);
+      border-color: var(--nvidia-green);
+      color: #fff;
+    }
+
+    .packet-board {
+      padding: clamp(18px, 2.2vw, 28px);
+      display: grid;
+      gap: 18px;
+    }
+
+    .packet-flow {
+      display: grid;
+      grid-template-columns: minmax(220px, 1fr) auto minmax(220px, 1fr) auto minmax(220px, 1fr);
+      gap: 12px;
+      align-items: center;
+    }
+
+    .packet {
+      min-height: 168px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 14px;
+      background: #fbfcfe;
+      display: grid;
+      align-content: start;
+      gap: 10px;
+    }
+
+    .packet strong {
+      color: #122033;
+      font-size: 15px;
+    }
+
+    .packet ul {
+      margin: 0;
+      padding-left: 18px;
+      color: var(--muted);
+      line-height: 1.45;
+      font-size: 14px;
+    }
+
+    .flow-arrow {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      background: #e9eff6;
+      color: #1b2939;
+      font-weight: 900;
+    }
+
+    .memory-strip {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .memory-chip {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 14px;
+      background: #fff;
+    }
+
+    .memory-chip strong {
+      display: block;
+      margin-bottom: 6px;
+      color: #122033;
+    }
+
+    .memory-chip span {
+      color: var(--muted);
+      line-height: 1.4;
+      font-size: 14px;
+    }
+
+    .compare-grid,
+    .principle-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    .compare-panel,
+    .principle-card {
+      padding: 18px;
+      display: grid;
+      gap: 12px;
+      align-content: start;
+    }
+
+    .principle-card {
+      position: relative;
+      min-height: 285px;
+      padding: clamp(20px, 2vw, 28px);
+      gap: 16px;
+      overflow: hidden;
+      --accent: var(--blue);
+      --accent-soft: #eef5ff;
+    }
+
+    .principle-card:nth-child(2) {
+      --accent: var(--amber);
+      --accent-soft: #fff6e8;
+    }
+
+    .principle-card:nth-child(3) {
+      --accent: var(--green);
+      --accent-soft: #ecf8f4;
+    }
+
+    .principle-card::before {
+      content: "";
+      position: absolute;
+      inset: 0 0 auto;
+      height: 6px;
+      background: var(--accent);
+    }
+
+    .compare-panel {
+      min-height: 260px;
+      box-shadow: none;
+    }
+
+    .compare-panel h3,
+    .principle-card h3 {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+    }
+
+    .principle-card h3 {
+      display: block;
+      font-size: clamp(20px, 1.35vw, 23px);
+      line-height: 1.14;
+      padding-top: 2px;
+    }
+
+    .num {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      display: inline-grid;
+      place-items: center;
+      background: #e8edf4;
+      color: #263548;
+      font-size: 13px;
+      font-weight: 820;
+      flex: 0 0 auto;
+    }
+
+    .principle-card .num {
+      background: var(--accent-soft);
+      color: var(--accent);
+    }
+
+    .compare-panel p,
+    .principle-card p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+
+    .takeaway-label {
+      align-self: start;
+      width: max-content;
+      max-width: 100%;
+      border-radius: 999px;
+      padding: 6px 10px;
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 820;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .takeaway-copy {
+      color: #122033 !important;
+      font-size: clamp(19px, 1.45vw, 24px);
+      font-weight: 820;
+      line-height: 1.16 !important;
+    }
+
+    .evidence-line {
+      border-left: 4px solid var(--accent);
+      border-radius: 0 8px 8px 0;
+      padding: 10px 12px;
+      background: var(--accent-soft);
+      color: #29384b !important;
+      font-weight: 680;
+    }
+
+    .mini-code {
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      padding: 12px;
+      background: #f7f9fc;
+      color: #253244;
+      font-size: 12px;
+      line-height: 1.45;
+      overflow-wrap: anywhere;
+      white-space: pre-wrap;
+    }
+
+    .principle-card .mini-code {
+      margin-top: auto;
+      font-size: 14px;
+      font-weight: 760;
+    }
+
+    .tool-cta {
+      --cta-footer-y: 220px;
+      --cta-rebound-y: 75px;
+      --cta-near-footer-y: 172px;
+      --cta-settle-y: 110px;
+      --cta-harness-width: 180px;
+      margin-top: clamp(38px, 5vh, 58px);
+      padding: clamp(18px, 2.2vw, 28px) clamp(20px, 3vw, 36px);
+      border: 1px solid var(--line-strong);
+      border-radius: 8px;
+      background:
+        linear-gradient(90deg, rgba(36, 107, 254, 0.08), rgba(13, 139, 95, 0.08)),
+        #fff;
+      box-shadow: 0 16px 34px rgba(23, 32, 42, 0.09);
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 18px 28px;
+      align-items: center;
+      position: relative;
+      overflow: visible;
+      transform-origin: center top;
+    }
+
+    .takeaway-slide.active .tool-cta {
+      animation: ctaBungeeFall 2800ms both;
+      will-change: transform;
+    }
+
+    .tool-cta::before,
+    .tool-cta::after {
+      content: "";
+      position: absolute;
+      top: 50%;
+      width: var(--cta-harness-width);
+      height: 3px;
+      border-radius: 999px;
+      pointer-events: none;
+      opacity: 0;
+      background: repeating-linear-gradient(
+        90deg,
+        rgba(118, 185, 0, 0.92) 0 10px,
+        rgba(118, 185, 0, 0.34) 10px 15px
+      );
+      filter: drop-shadow(0 2px 5px rgba(118, 185, 0, 0.28));
+    }
+
+    .tool-cta::before {
+      right: calc(100% + 12px);
+      transform-origin: right center;
+    }
+
+    .tool-cta::after {
+      left: calc(100% + 12px);
+      transform-origin: left center;
+    }
+
+    .takeaway-slide.active .tool-cta::before {
+      animation: ctaHarnessLeft 2800ms both;
+    }
+
+    .takeaway-slide.active .tool-cta::after {
+      animation: ctaHarnessRight 2800ms both;
+    }
+
+    @keyframes ctaBungeeFall {
+      0% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+        animation-timing-function: cubic-bezier(0.45, 0, 0.92, 0.48);
+      }
+      30% {
+        transform: translateY(var(--cta-footer-y)) scale(1.012, 0.965);
+        animation-timing-function: cubic-bezier(0.16, 0.78, 0.28, 1);
+      }
+      46% {
+        transform: translateY(var(--cta-rebound-y)) scale(0.992, 1.018);
+        animation-timing-function: cubic-bezier(0.38, 0, 0.84, 0.42);
+      }
+      61% {
+        transform: translateY(var(--cta-near-footer-y)) scale(1.007, 0.982);
+        animation-timing-function: cubic-bezier(0.2, 0.78, 0.32, 1);
+      }
+      76% {
+        transform: translateY(calc(var(--cta-settle-y) - 22px)) scale(0.996, 1.008);
+        animation-timing-function: cubic-bezier(0.38, 0, 0.72, 0.52);
+      }
+      88% {
+        transform: translateY(calc(var(--cta-settle-y) + 9px)) scale(1.003, 0.995);
+        animation-timing-function: cubic-bezier(0.24, 0.7, 0.34, 1);
+      }
+      94% {
+        transform: translateY(calc(var(--cta-settle-y) - 4px)) scale(0.998, 1.003);
+        animation-timing-function: cubic-bezier(0.22, 0.72, 0.36, 1);
+      }
+      98% {
+        transform: translateY(calc(var(--cta-settle-y) + 2px)) scale(1.001, 0.999);
+        animation-timing-function: ease-out;
+      }
+      100% {
+        opacity: 1;
+        transform: translateY(var(--cta-settle-y)) scale(1);
+      }
+    }
+
+    @keyframes ctaHarnessLeft {
+      0% {
+        opacity: 0;
+        transform: rotate(2deg) scaleX(0.72);
+      }
+      30% {
+        opacity: 0.72;
+        transform: rotate(9deg) scaleX(1.14);
+      }
+      46% {
+        opacity: 0.46;
+        transform: rotate(4deg) scaleX(0.86);
+      }
+      61% {
+        opacity: 0.64;
+        transform: rotate(7deg) scaleX(1.05);
+      }
+      88% {
+        opacity: 0.54;
+        transform: rotate(5.7deg) scaleX(1.015);
+      }
+      96% {
+        opacity: 0.5;
+        transform: rotate(5.2deg) scaleX(1.004);
+      }
+      100% {
+        opacity: 0.5;
+        transform: rotate(5deg) scaleX(1);
+      }
+    }
+
+    @keyframes ctaHarnessRight {
+      0% {
+        opacity: 0;
+        transform: rotate(-2deg) scaleX(0.72);
+      }
+      30% {
+        opacity: 0.72;
+        transform: rotate(-9deg) scaleX(1.14);
+      }
+      46% {
+        opacity: 0.46;
+        transform: rotate(-4deg) scaleX(0.86);
+      }
+      61% {
+        opacity: 0.64;
+        transform: rotate(-7deg) scaleX(1.05);
+      }
+      88% {
+        opacity: 0.54;
+        transform: rotate(-5.7deg) scaleX(1.015);
+      }
+      96% {
+        opacity: 0.5;
+        transform: rotate(-5.2deg) scaleX(1.004);
+      }
+      100% {
+        opacity: 0.5;
+        transform: rotate(-5deg) scaleX(1);
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .takeaway-slide.active .tool-cta,
+      .takeaway-slide.active .tool-cta::before,
+      .takeaway-slide.active .tool-cta::after {
+        animation: none;
+        will-change: auto;
+      }
+    }
+
+    .tool-cta-copy {
+      display: grid;
+      gap: 6px;
+      min-width: 0;
+    }
+
+    .tool-cta-copy p {
+      margin: 0;
+    }
+
+    .tool-cta-kicker {
+      color: var(--muted);
+      font-size: clamp(18px, 1.4vw, 24px);
+      font-weight: 720;
+      line-height: 1.25;
+    }
+
+    .tool-cta-headline {
+      color: #122033;
+      font-size: clamp(25px, 2.2vw, 38px);
+      font-weight: 860;
+      line-height: 1.12;
+    }
+
+    .tool-cta-action {
+      display: grid;
+      gap: 10px;
+      justify-items: end;
+      text-align: center;
+      width: min(460px, 100%);
+    }
+
+    .tool-cta-question {
+      color: #29384b;
+      width: 100%;
+      font-size: 16px;
+      font-weight: 760;
+      line-height: 1.25;
+      white-space: nowrap;
+    }
+
+    .tool-cta-link {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      width: 100%;
+      min-height: 46px;
+      padding: 0 20px;
+      border-radius: 8px;
+      background: var(--nvidia-green);
+      color: #fff;
+      font-size: 15px;
+      font-weight: 820;
+      text-decoration: none;
+      white-space: nowrap;
+      box-shadow: 0 10px 22px rgba(118, 185, 0, 0.22);
+    }
+
+    .tool-cta-icon {
+      width: 24px;
+      height: 24px;
+      display: inline-grid;
+      place-items: center;
+      flex: 0 0 auto;
+      line-height: 1;
+    }
+
+    .tool-cta-icon svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .tool-cta-link:focus-visible {
+      outline: 3px solid rgba(36, 107, 254, 0.32);
+      outline-offset: 3px;
+    }
+
+    .warning-text {
+      color: var(--red);
+      font-weight: 760;
+    }
+
+    .bottom-nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 14px clamp(16px, 3vw, 34px);
+      border-top: 1px solid var(--line);
+      background: rgba(255,255,255,0.9);
+      backdrop-filter: blur(10px);
+    }
+
+    .nav-btn {
+      background: #fff;
+      color: #17202a;
+      border: 1px solid var(--line);
+      min-width: 112px;
+    }
+
+    .nav-btn.primary {
+      background: var(--nvidia-green);
+      border-color: var(--nvidia-green);
+      color: #fff;
+    }
+
+    .nav-btn:disabled {
+      cursor: default;
+      opacity: 0.42;
+    }
+
+    .dots {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      background: #c5ced9;
+      padding: 0;
+    }
+
+    .dot.active {
+      width: 28px;
+      background: var(--nvidia-green);
+    }
+
+    @media (max-width: 1180px) {
+      .slide:has(.demo-shell) {
+        height: auto;
+        min-height: 100%;
+      }
+
+      .slide-inner:has(.demo-shell) {
+        height: auto;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .slide-inner:has(.demo-shell) .demo-shell {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        width: 100%;
+        min-width: 0;
+        max-width: 100%;
+      }
+
+      .slide-inner:has(.demo-shell) .chat-card,
+      .slide-inner:has(.demo-shell):not(:has(.scenario-controls)) .chat-card,
+      .slide-inner:has(.demo-shell) .log-panel {
+        position: relative;
+        top: auto;
+        grid-column: auto;
+        grid-row: auto;
+        justify-self: stretch;
+        width: 100%;
+        height: 420px;
+        min-height: 0;
+        transform: none;
+      }
+
+      .slide-inner:has(.demo-shell) .chat-card {
+        order: 1;
+      }
+
+      .slide-inner:has(.demo-shell) .log-panel {
+        order: 2;
+      }
+
+      .packet-flow,
+      .compare-grid,
+      .principle-grid,
+      .memory-strip {
+        grid-template-columns: 1fr;
+      }
+
+      .flow-arrow {
+        transform: rotate(90deg);
+        justify-self: center;
+      }
+    }
+
+    @media (max-width: 720px) {
+      .topbar,
+      .bottom-nav {
+        gap: 10px;
+      }
+
+      .brand span {
+        display: none;
+      }
+
+      .settings-btn span {
+        display: none;
+      }
+
+      .progress-wrap {
+        min-width: 90px;
+      }
+
+      .slide {
+        min-height: calc(100vh - 132px);
+        padding: 22px 14px;
+        overflow-x: hidden;
+      }
+
+      .slide-inner {
+        width: 100%;
+        max-width: 100%;
+      }
+
+      .slide-title,
+      .principle-grid,
+      .principle-card,
+      .tool-cta {
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+      }
+
+      h1 {
+        font-size: 40px;
+      }
+
+      h2 {
+        font-size: 32px;
+        max-width: 100%;
+        overflow-wrap: anywhere;
+      }
+
+      .lead {
+        font-size: 18px;
+        max-width: 340px;
+      }
+
+      .principle-card {
+        min-height: 0;
+        padding: 20px;
+      }
+
+      .principle-card h3,
+      .takeaway-copy,
+      .evidence-line,
+      .mini-code {
+        overflow-wrap: anywhere;
+      }
+
+      .takeaway-copy {
+        font-size: 20px;
+      }
+
+      .principle-card .mini-code {
+        white-space: normal;
+      }
+
+      .tool-cta {
+        grid-template-columns: 1fr;
+        padding: 18px;
+      }
+
+      .tool-cta-copy {
+        width: 100%;
+      }
+
+      .tool-cta-kicker,
+      .tool-cta-headline,
+      .tool-cta-question {
+        max-width: 100%;
+        overflow-wrap: anywhere;
+      }
+
+      .tool-cta-headline {
+        font-size: 24px;
+      }
+
+      .tool-cta-headline span {
+        display: block;
+      }
+
+      .tool-cta-action {
+        justify-items: center;
+        text-align: center;
+        width: min(460px, 100%);
+      }
+
+      .tool-cta-link {
+        width: 100%;
+        white-space: normal;
+        text-align: center;
+        padding: 10px 14px;
+      }
+
+      .tool-cta-question {
+        white-space: normal;
+      }
+
+      .message-row {
+        width: 100%;
+        max-width: 100%;
+      }
+
+      .bubble {
+        max-width: 260px !important;
+      }
+
+      .chat-head,
+      .log-head {
+        justify-content: flex-start;
+        align-items: center;
+      }
+
+      .chat-title span,
+      .log-title span {
+        white-space: nowrap;
+      }
+
+      .system .bubble,
+      .note .bubble {
+        max-width: 100% !important;
+      }
+
+      .composer {
+        grid-template-columns: 1fr;
+      }
+
+      .fake-input {
+        white-space: normal;
+      }
+
+      .nav-btn {
+        min-width: 84px;
+        padding: 0 10px;
+      }
+
+      .send-btn {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="deck">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark">LLM</div>
+        <span>What Memento taught me about LLMs and harnesses</span>
+      </div>
+      <div class="progress-wrap" aria-hidden="true">
+        <div class="progress" id="progress"></div>
+      </div>
+      <div class="topbar-actions">
+        <button class="settings-btn" id="apiSettingsButton" type="button" aria-haspopup="dialog" aria-controls="apiSettingsDialog" title="Configure OpenRouter">API <span>settings</span></button>
+        <div class="slide-count" id="slideCount">1 / 7</div>
+      </div>
+    </header>
+
+    <main class="slides" id="slides">
+      <article class="slide active" data-title="One request">
+        <div class="slide-inner">
+          <div class="slide-title">
+            <div class="eyebrow">Mental model</div>
+            <h1>The model sees<br>one request<br>at a time.</h1>
+            <p class="lead">The chat app, agent loop, or notebook is the harness.<br>It decides the messages, tool schemas, and results placed in each LLM API call.</p>
+          </div>
+
+          <div class="demo-shell" data-demo="oneRequest">
+            <section class="chat-card" aria-label="Chat conversation">
+              <div class="chat-head">
+                <div class="window-dots" aria-hidden="true"><span></span><span></span><span></span></div>
+                <div class="chat-title">
+                  <strong>LLM Chat</strong>
+                  <span data-chat-session-meta></span>
+                </div>
+              </div>
+              <div class="chat-thread" data-chat></div>
+              <div class="composer">
+                <div class="fake-input" data-input></div>
+                <button class="send-btn" type="button" aria-label="Send message">-></button>
+              </div>
+            </section>
+
+            <aside class="log-panel" aria-label="API calls and logs">
+              <div class="log-head">
+                <div class="window-dots" aria-hidden="true"><span></span><span></span><span></span></div>
+                <div class="log-title">
+                  <strong>Harness log</strong>
+                  <span>The actual LLM input/output behind the screens.</span>
+                </div>
+              </div>
+              <div class="state-caption" data-caption></div>
+              <div class="log-list" data-logs></div>
+            </aside>
+          </div>
+        </div>
+      </article>
+
+      <article class="slide" data-title="History replay">
+        <div class="slide-inner">
+          <div class="slide-title">
+            <div class="eyebrow">Conversation memory</div>
+            <h2>History works when the next API call includes it.</h2>
+            <p class="lead">An LLM usually does NOT have any private memory.</p>
+          </div>
+
+          <div class="demo-shell" data-demo="memoryReplay">
+            <section class="chat-card" aria-label="Memory chat">
+              <div class="chat-head">
+                <div class="window-dots" aria-hidden="true"><span></span><span></span><span></span></div>
+                <div class="chat-title">
+                  <strong>LLM Chat</strong>
+                  <span data-chat-session-meta></span>
+                </div>
+              </div>
+              <div class="chat-thread" data-chat></div>
+              <div class="composer">
+                <div class="fake-input" data-input></div>
+                <button class="send-btn" type="button" aria-label="Send message">-></button>
+              </div>
+            </section>
+
+            <aside class="log-panel" aria-label="API calls and logs">
+              <div class="log-head">
+                <div class="window-dots" aria-hidden="true"><span></span><span></span><span></span></div>
+                <div class="log-title">
+                  <strong>Harness log</strong>
+                  <span>The actual LLM input/output behind the screens.</span>
+                </div>
+              </div>
+              <div class="state-caption" data-caption></div>
+              <div class="log-list" data-logs></div>
+            </aside>
+          </div>
+        </div>
+      </article>
+
+      <article class="slide" data-title="Dropped history">
+        <div class="slide-inner">
+          <div class="slide-title">
+            <div class="eyebrow">Conversation memory</div>
+            <h2>Drop the history and...</h2>
+            <p class="lead">The visible chat can look continuous,<br>but the second API call contains only the latest user message.</p>
+          </div>
+
+          <div class="demo-shell" data-demo="memoryDrop">
+            <section class="chat-card" aria-label="Dropped history chat">
+              <div class="chat-head">
+                <div class="window-dots" aria-hidden="true"><span></span><span></span><span></span></div>
+                <div class="chat-title">
+                  <strong>LLM Chat</strong>
+                  <span data-chat-session-meta></span>
+                </div>
+              </div>
+              <div class="chat-thread" data-chat></div>
+              <div class="composer">
+                <div class="fake-input" data-input></div>
+                <button class="send-btn" type="button" aria-label="Send message">-></button>
+              </div>
+            </section>
+
+            <aside class="log-panel" aria-label="Dropped history API calls">
+              <div class="log-head">
+                <div class="window-dots" aria-hidden="true"><span></span><span></span><span></span></div>
+                <div class="log-title">
+                  <strong>Harness log</strong>
+                  <span>The actual LLM input/output behind the screens.</span>
+                </div>
+              </div>
+              <div class="state-caption" data-caption></div>
+              <div class="log-list" data-logs></div>
+            </aside>
+          </div>
+        </div>
+      </article>
+
+      <article class="slide" data-title="Rewrite history">
+        <div class="slide-inner">
+          <div class="slide-title">
+            <div class="eyebrow">Harness control</div>
+            <h2>Rewrite the history and...</h2>
+            <p class="lead">in subsequent API calls,<br>the harness can rewrite the assistant's earlier responses.</p>
+          </div>
+
+          <div class="demo-shell" data-demo="rewrite">
+            <section class="chat-card" aria-label="Rewritten chat">
+              <div class="chat-head">
+                <div class="window-dots" aria-hidden="true"><span></span><span></span><span></span></div>
+                <div class="chat-title">
+                  <strong>LLM Chat</strong>
+                  <span data-chat-session-meta></span>
+                </div>
+              </div>
+              <div class="chat-thread" data-chat></div>
+              <div class="composer">
+                <div class="fake-input" data-input></div>
+                <button class="send-btn" type="button" aria-label="Send message">-></button>
+              </div>
+            </section>
+
+            <aside class="log-panel" aria-label="Rewritten API calls">
+              <div class="log-head">
+                <div class="window-dots" aria-hidden="true"><span></span><span></span><span></span></div>
+                <div class="log-title">
+                  <strong>Harness log</strong>
+                  <span>The actual LLM input/output behind the screens.</span>
+                </div>
+              </div>
+              <div class="state-caption" data-caption></div>
+              <div class="log-list" data-logs></div>
+            </aside>
+          </div>
+        </div>
+      </article>
+
+      <article class="slide" data-title="Call the user">
+        <div class="slide-inner">
+          <div class="slide-title">
+            <div class="eyebrow">Tool calling</div>
+            <h2>Instruction:<br>Call the user...</h2>
+            <p class="lead">The model follows the instruction by<br>emitting a request to the human for info.</p>
+          </div>
+
+          <div class="demo-shell" data-demo="weakTool">
+            <section class="chat-card" aria-label="Call user chat">
+              <div class="chat-head">
+                <div class="window-dots" aria-hidden="true"><span></span><span></span><span></span></div>
+                <div class="chat-title">
+                  <strong>LLM Chat</strong>
+                  <span data-chat-session-meta></span>
+                </div>
+              </div>
+              <div class="chat-thread" data-chat></div>
+              <div class="composer">
+                <div class="fake-input" data-input></div>
+                <button class="send-btn" type="button" aria-label="Send message">-></button>
+              </div>
+            </section>
+
+            <aside class="log-panel" aria-label="Call user API log">
+              <div class="log-head">
+                <div class="window-dots" aria-hidden="true"><span></span><span></span><span></span></div>
+                <div class="log-title">
+                  <strong>Harness log</strong>
+                  <span>The actual LLM input/output behind the screens.</span>
+                </div>
+              </div>
+              <div class="state-caption" data-caption></div>
+              <div class="log-list" data-logs></div>
+            </aside>
+          </div>
+        </div>
+      </article>
+
+      <article class="slide" data-title="Call the tool">
+        <div class="slide-inner">
+          <div class="slide-title">
+            <div class="eyebrow">Tool calling</div>
+            <h2>Instruction:<br>Call the tool...</h2>
+            <p class="lead">The model follows the schema-backed instruction by<br>emitting a structured tool-call object.<br>Now, the harness responds to the request, not the user.</p>
+          </div>
+
+          <div class="demo-shell" data-demo="strongTool">
+            <section class="chat-card" aria-label="Tool call chat">
+              <div class="chat-head">
+                <div class="window-dots" aria-hidden="true"><span></span><span></span><span></span></div>
+                <div class="chat-title">
+                  <strong>LLM Chat</strong>
+                  <span data-chat-session-meta></span>
+                </div>
+              </div>
+              <div class="chat-thread" data-chat></div>
+              <div class="composer">
+                <div class="fake-input" data-input></div>
+                <button class="send-btn" type="button" aria-label="Send message">-></button>
+              </div>
+            </section>
+
+            <aside class="log-panel" aria-label="Tool call API log">
+              <div class="log-head">
+                <div class="window-dots" aria-hidden="true"><span></span><span></span><span></span></div>
+                <div class="log-title">
+                  <strong>Harness log</strong>
+                  <span>The actual LLM input/output behind the screens.</span>
+                </div>
+              </div>
+              <div class="state-caption" data-caption></div>
+              <div class="log-list" data-logs></div>
+            </aside>
+          </div>
+        </div>
+      </article>
+
+      <article class="slide takeaway-slide" data-title="Takeaway">
+        <div class="slide-inner">
+          <div class="slide-title">
+            <div class="eyebrow">Takeaway</div>
+            <h2>Same model. Different harness.<br>Different behavior.</h2>
+            <p class="lead">The app controls context, tools, logs, and side effects.</p>
+          </div>
+
+          <div class="principle-grid">
+            <div class="principle-card">
+              <div class="takeaway-label">Context</div>
+              <h3>No hidden memory</h3>
+              <p class="takeaway-copy">Memory is just replayed context.</p>
+              <p class="evidence-line">Drop history &rarr; fact disappears.</p>
+              <div class="mini-code">request = system + history + latest</div>
+            </div>
+            <div class="principle-card">
+              <div class="takeaway-label">History</div>
+              <h3>History is editable</h3>
+              <p class="takeaway-copy">Change context, change behavior.</p>
+              <p class="evidence-line">Rewrite a turn &rarr; new reality.</p>
+              <div class="mini-code warning-text">visible chat &ne; API context</div>
+            </div>
+            <div class="principle-card">
+              <div class="takeaway-label">Tools</div>
+              <h3>Tools are delegated</h3>
+              <p class="takeaway-copy">The model asks. The harness acts.</p>
+              <p class="evidence-line">Schema target &rarr; <code>tool_calls</code>.</p>
+              <div class="mini-code">model &rarr; tool_call &rarr; harness</div>
+            </div>
+          </div>
+
+          <div class="tool-cta" aria-label="Professional call to action">
+            <div class="tool-cta-copy">
+              <p class="tool-cta-kicker">A good tool improves the way you (or LLMs) work.</p>
+              <p class="tool-cta-headline"><span>A great tool improves the way you (or LLMs) think!</span></p>
+            </div>
+            <div class="tool-cta-action">
+              <div class="tool-cta-question">What does a great tool look like?</div>
+              <a class="tool-cta-link" href="https://nvidia.atlassian.net/wiki/spaces/~cvs/blog/3247039388/Anatomy+of+an+effective+Agent+Tool" target="_blank" rel="noopener"><span class="tool-cta-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.35" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.1-3.1a6 6 0 0 1-7.9 7.9l-6.9 6.9a2.1 2.1 0 0 1-3-3l6.9-6.9a6 6 0 0 1 7.9-7.9l-3.1 3.1Z"></path></svg></span><span>Anatomy of a great tool</span></a>
+            </div>
+          </div>
+        </div>
+      </article>
+    </main>
+
+    <footer class="bottom-nav">
+      <button class="nav-btn" id="prevSlide" type="button">Prev</button>
+      <div class="dots" id="dots" aria-label="Slide navigation"></div>
+      <button class="nav-btn primary" id="nextSlide" type="button">Next</button>
+    </footer>
+  </div>
+
+  <dialog class="api-dialog" id="apiSettingsDialog" aria-labelledby="apiSettingsTitle">
+    <form class="api-dialog-form" id="apiSettingsForm">
+      <div class="api-dialog-head">
+        <div>
+          <h2 id="apiSettingsTitle">OpenRouter settings</h2>
+          <p class="api-dialog-copy">Live demos call OpenRouter directly from this browser. These settings override the deployed defaults.</p>
+        </div>
+        <button class="dialog-btn dialog-close" id="apiSettingsClose" type="button" aria-label="Close settings">&times;</button>
+      </div>
+      <div class="api-dialog-fields">
+        <label class="api-field">
+          API key
+          <input id="apiKeyInput" type="password" autocomplete="off" spellcheck="false" placeholder="sk-or-v1-...">
+        </label>
+        <label class="api-field">
+          Model
+          <input id="apiModelInput" type="text" autocomplete="off" spellcheck="false" value="google/gemma-4-26b-a4b-it:free" required>
+        </label>
+      </div>
+      <p class="api-dialog-note">A key entered here stays in session storage for this tab and overrides the key embedded during deployment.</p>
+      <div class="api-dialog-actions">
+        <button class="dialog-btn" id="apiSettingsClear" type="button">Clear</button>
+        <button class="dialog-btn primary" type="submit">Save for this tab</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script>
+    const slideEls = Array.from(document.querySelectorAll(".slide"));
+    const progressEl = document.getElementById("progress");
+    const slideCountEl = document.getElementById("slideCount");
+    const prevSlideBtn = document.getElementById("prevSlide");
+    const nextSlideBtn = document.getElementById("nextSlide");
+    const dotsEl = document.getElementById("dots");
+    const apiSettingsButton = document.getElementById("apiSettingsButton");
+    const apiSettingsDialog = document.getElementById("apiSettingsDialog");
+    const apiSettingsForm = document.getElementById("apiSettingsForm");
+    const apiSettingsClose = document.getElementById("apiSettingsClose");
+    const apiSettingsClear = document.getElementById("apiSettingsClear");
+    const apiKeyInput = document.getElementById("apiKeyInput");
+    const apiModelInput = document.getElementById("apiModelInput");
+    let currentSlide = 0;
+
+    const DEFAULT_API_ENDPOINT = "https://openrouter.ai/api/v1/chat/completions";
+    const DEFAULT_API_MODEL = "nvidia/nemotron-3-nano-30b-a3b:free";
+    const DEFAULT_API_KEY = "__OPENROUTER_API_KEY__";
+    const API_KEY_STORAGE_KEY = "how_llms_openrouter_key";
+    const API_MODEL_STORAGE_KEY = "how_llms_openrouter_model";
+    const LLM_TEMPERATURE = 0;
+    const LLM_NETWORK_RETRY_LIMIT = 2;
+    const LLM_NETWORK_RETRY_DELAY_MS = 700;
+    const CHAT_MESSAGE_REVEAL_DELAY_MS = 1000;
+    const TAJ_USER_MESSAGE = "Visiting the Taj Mahal today, should I carry an umbrella?";
+    const USER_TEMPERATURE_REPLY = "It is 31 C in Agra.";
+    const TOOL_CONTINUE_PROMPT = "Continue with tool result";
+    const userCallInstruction = "For this demo, if the user asks anything that requires current weather data, do not answer the weather question and do not invent weather data. Instead, respond with exactly this sentence and nothing else: \"What is the current weather in <city>?\" Replace <city> with the city mentioned by the user. Do not include explanations, greetings, markdown, tool calls, or any additional text.";
+    const toolCallInstruction = "When weather is needed, call get_current_weather for the missing fact, using the best city you can infer. Do not ask the user for weather. After the tool result arrives, answer the user.";
+    const READONLY_INPUT_NOTICE = "Click send to trigger the conversation with the LLM and view the resulting API call and response.";
+    const demoStates = new Map();
+    const inputNoticeTimers = new WeakMap();
+
+    const weatherTool = {
+      type: "function",
+      function: {
+        name: "get_current_weather",
+        description: "Return current weather for a city.",
+        parameters: {
+          type: "object",
+          properties: {
+            city: { type: "string", description: "City or place name." },
+            date: { type: "string", description: "Date label, such as today." }
+          },
+          required: ["city"]
+        }
+      }
+    };
+
+    function msg(role, content) {
+      return { role, content };
+    }
+
+    function noteWithLog(text, logTarget, linkText = "", logRelation = "") {
+      return ["note", text, { logTarget, linkText, logRelation }];
+    }
+
+    const LOG_IDS = {
+      oneRequestRequest: "one-request-api-request",
+      oneRequestReply: "one-request-reply",
+      memoryReplayRequest1: "memory-replay-api-request-1",
+      memoryReplayReply1: "memory-replay-reply-1",
+      memoryReplayRequest2: "memory-replay-api-request-2",
+      memoryReplayReply2: "memory-replay-reply-2",
+      memoryDropRequest1: "memory-drop-api-request-1",
+      memoryDropReply1: "memory-drop-reply-1",
+      memoryDropRequest2: "memory-drop-api-request-2",
+      memoryDropReply2: "memory-drop-reply-2",
+      rewriteRequest1: "rewrite-api-request-1",
+      rewriteReply1: "rewrite-reply-1",
+      rewriteMutation: "rewrite-history-mutation",
+      rewriteRequest2: "rewrite-api-request-2",
+      rewriteReply2: "rewrite-reply-2",
+      callUserRequest1: "call-user-api-request-1",
+      callUserReply1: "call-user-reply-1",
+      callUserRequest2: "call-user-api-request-2",
+      callUserReply2: "call-user-reply-2",
+      callToolRequest1: "call-tool-api-request-1",
+      callToolReply1: "call-tool-reply-1",
+      callToolExecution: "call-tool-execution",
+      callToolRequest2: "call-tool-api-request-2",
+      callToolReply2: "call-tool-reply-2"
+    };
+
+    const demos = {
+      oneRequest: {
+        input: "Hello",
+        steps: [
+          {
+            title: "The LLM only sees the current payload.",
+            note: "Press send to make a real chat-completions request.",
+            preview: [
+              ["user", "Hello"]
+            ],
+            previewLogs: [
+              preparedRequestLog("api", "Request 1 preview: user message included", {
+                endpoint: DEFAULT_API_ENDPOINT,
+                model: DEFAULT_API_MODEL,
+                messages: [
+                  msg("system", "You are a helpful assistant. Keep the response to one sentence."),
+                  msg("user", "Hello")
+                ]
+              }, true, LOG_IDS.oneRequestRequest)
+            ],
+            run: runOneRequest
+          }
+        ]
+      },
+      memoryReplay: {
+        input: "My name is Mira.",
+        steps: [
+          {
+            title: "API request 1 creates a turn. API request 2 replays that turn.",
+            note: "First click sends the name. After the reply, click send again to ask: What is my name?",
+            preview: [
+              ["user", "My name is Mira."]
+            ],
+            previewLogs: [
+              preparedRequestLog("api", "API request 1 preview: name is present", memoryCallOneBody(), true, LOG_IDS.memoryReplayRequest1)
+            ],
+            run: runMemoryReplayHistory
+          }
+        ]
+      },
+      memoryDrop: {
+        input: "My name is Mira.",
+        steps: [
+          {
+            title: "API request 1 creates a turn. API request 2 drops that turn.",
+            note: "First click sends the name. Next follow-up without providing chat history.",
+            preview: [
+              ["user", "My name is Mira."]
+            ],
+            previewLogs: [
+              preparedRequestLog("api", "API request 1 preview: name is present", memoryCallOneBody(), true, LOG_IDS.memoryDropRequest1)
+            ],
+            run: runMemoryDroppedHistory
+          }
+        ]
+      },
+      rewrite: {
+        input: "Pick a project codename for this demo.",
+        steps: [
+          {
+            title: "API request 1 creates a turn. API request 2 rewrites that turn.",
+            note: "First click asks for a codename. Next ask the follow-up with an edited LLM response.",
+            preview: [
+              ["user", "Pick a project codename for this demo."]
+            ],
+            previewLogs: [
+              preparedRequestLog("api", "API request 1 preview: codename prompt", rewriteFirstBody(), true, LOG_IDS.rewriteRequest1)
+            ],
+            run: runRewriteChronological
+          }
+        ]
+      },
+      weakTool: {
+        input: TAJ_USER_MESSAGE,
+        steps: [
+          {
+            title: "The instruction says: call the user.",
+            note: "First send makes the model ask the human. Second send appends a temperature value and gets the answer.",
+            preview: [
+              ["system", userCallInstruction],
+              ["user", TAJ_USER_MESSAGE]
+            ],
+            previewLogs: [
+              preparedRequestLog("api", "Preview of API request 1", weakToolBody(), true, LOG_IDS.callUserRequest1)
+            ],
+            run: runWeakTool
+          }
+        ]
+      },
+      strongTool: {
+        input: TAJ_USER_MESSAGE,
+        steps: [
+          {
+            title: "The instruction says: call the tool.",
+            note: "First send gets a structured tool-call object. The harness immediately appends the tool result for the final answer.",
+            preview: [
+              ["system", toolCallInstruction],
+              ["user", TAJ_USER_MESSAGE]
+            ],
+            previewLogs: [
+              preparedRequestLog("api", "Preview of API request 1", strongToolBody(), true, LOG_IDS.callToolRequest1)
+            ],
+            run: runStrongToolRequest
+          }
+        ]
+      }
+    };
+
+    function logEntry(kind, badge, title, payload, open = false, status = "", id = "") {
+      return { kind, badge, title, payload, open, status, id };
+    }
+
+    function preparedRequestLog(kind, title, payload, open = true, id = "") {
+      return logEntry(kind, "Waiting...", title, payload, open, "waiting", id);
+    }
+
+    function normalizeChatCompletionsEndpoint(value) {
+      const raw = String(value || "").trim();
+      let url;
+      try {
+        url = new URL(raw);
+      } catch {
+        throw new Error("Invalid API endpoint URL");
+      }
+      const path = url.pathname.replace(/\/+$/, "");
+      if (!/\/chat\/completions$/i.test(path)) {
+        url.pathname = `${path}/chat/completions`.replace(/\/{2,}/g, "/");
+      }
+      return url.toString();
+    }
+
+    function chatSessionMetaText() {
+      const model = (sessionStorage.getItem(API_MODEL_STORAGE_KEY) || DEFAULT_API_MODEL).trim() || "unconfigured model";
+      let endpoint = DEFAULT_API_ENDPOINT.trim() || "unconfigured endpoint";
+      try {
+        endpoint = normalizeChatCompletionsEndpoint(endpoint);
+      } catch {
+        // Keep the configured value visible so a bad endpoint is easy to spot.
+      }
+      return `Interactive session with ${model} via ${endpoint}`;
+    }
+
+    function renderChatSessionMeta() {
+      const text = chatSessionMetaText();
+      document.querySelectorAll("[data-chat-session-meta]").forEach((el) => {
+        el.textContent = text;
+        el.title = text;
+      });
+    }
+
+    function getApiConfig() {
+      const endpoint = normalizeChatCompletionsEndpoint(DEFAULT_API_ENDPOINT);
+      const model = (sessionStorage.getItem(API_MODEL_STORAGE_KEY) || DEFAULT_API_MODEL).trim();
+      const token = (sessionStorage.getItem(API_KEY_STORAGE_KEY) || deployedApiKey()).trim();
+      if (!model) throw new Error("API model missing");
+      if (!token) {
+        openApiSettings();
+        throw new Error("OpenRouter API key missing. Add one in API settings, then send again.");
+      }
+      return { endpoint, model, token };
+    }
+
+    function deployedApiKey() {
+      return DEFAULT_API_KEY.startsWith("__") ? "" : DEFAULT_API_KEY;
+    }
+
+    function openApiSettings() {
+      apiKeyInput.value = sessionStorage.getItem(API_KEY_STORAGE_KEY) || "";
+      apiKeyInput.placeholder = deployedApiKey() ? "Using deployment key" : "sk-or-v1-...";
+      apiModelInput.value = sessionStorage.getItem(API_MODEL_STORAGE_KEY) || DEFAULT_API_MODEL;
+      if (!apiSettingsDialog.open) apiSettingsDialog.showModal();
+      window.setTimeout(() => apiKeyInput.focus(), 0);
+    }
+
+    function saveApiSettings(event) {
+      event.preventDefault();
+      const token = apiKeyInput.value.trim();
+      const model = apiModelInput.value.trim();
+      if (!model || (!token && !deployedApiKey())) return;
+      if (token) {
+        sessionStorage.setItem(API_KEY_STORAGE_KEY, token);
+      } else {
+        sessionStorage.removeItem(API_KEY_STORAGE_KEY);
+      }
+      sessionStorage.setItem(API_MODEL_STORAGE_KEY, model);
+      renderChatSessionMeta();
+      apiSettingsDialog.close();
+    }
+
+    function clearApiSettings() {
+      sessionStorage.removeItem(API_KEY_STORAGE_KEY);
+      sessionStorage.removeItem(API_MODEL_STORAGE_KEY);
+      apiKeyInput.value = "";
+      apiKeyInput.placeholder = deployedApiKey() ? "Using deployment key" : "sk-or-v1-...";
+      apiModelInput.value = DEFAULT_API_MODEL;
+      renderChatSessionMeta();
+      apiKeyInput.focus();
+    }
+
+    function publicRequest(endpoint, body) {
+      return { endpoint, body };
+    }
+
+    function sleep(ms) {
+      return new Promise((resolve) => window.setTimeout(resolve, ms));
+    }
+
+    function isRetryableLlmNetworkError(error) {
+      return error?.message === "NetworkError when attempting to fetch resource.";
+    }
+
+    async function callChatCompletion(request, label = "API") {
+      const apiConfig = getApiConfig();
+      const body = {
+        model: apiConfig.model,
+        temperature: LLM_TEMPERATURE,
+        max_tokens: 320,
+        ...request
+      };
+      const started = performance.now();
+      let response;
+      let attempts = 0;
+      while (attempts <= LLM_NETWORK_RETRY_LIMIT) {
+        attempts += 1;
+        try {
+          response = await fetch(apiConfig.endpoint, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${apiConfig.token}`,
+              "HTTP-Referer": window.location.href,
+              "X-OpenRouter-Title": "What Memento Taught Me About LLMs and Harnesses"
+            },
+            body: JSON.stringify(body)
+          });
+          break;
+        } catch (error) {
+          if (!isRetryableLlmNetworkError(error) || attempts > LLM_NETWORK_RETRY_LIMIT) {
+            const retryText = attempts > 1 ? ` after ${attempts} attempts` : "";
+            throw new Error(`${label} failed${retryText}: ${error?.message || String(error)}`);
+          }
+          await sleep(LLM_NETWORK_RETRY_DELAY_MS * attempts);
+        }
+      }
+
+      if (!response.ok) {
+        let detail = "";
+        try {
+          const parsed = await response.json();
+          detail = parsed?.error?.message || parsed?.message || JSON.stringify(parsed);
+        } catch {
+          detail = (await response.text()).trim();
+        }
+        throw new Error(`${label} failed with HTTP ${response.status}${detail ? `: ${detail.slice(0, 220)}` : ""}`);
+      }
+
+      const data = await response.json();
+      const elapsedMs = Math.round(performance.now() - started);
+      const message = data?.choices?.[0]?.message;
+      if (!message) throw new Error(`${label} response did not include choices[0].message`);
+      return { endpoint: apiConfig.endpoint, body, data, message, elapsedMs, attempts };
+    }
+
+    function assistantText(message) {
+      const content = message?.content;
+      if (typeof content === "string") return content.trim();
+      if (Array.isArray(content)) {
+        return content.map((part) => {
+          if (typeof part === "string") return part;
+          if (typeof part?.text === "string") return part.text;
+          return "";
+        }).join("").trim();
+      }
+      if (content == null) return "";
+      return String(content).trim();
+    }
+
+    function compactMessage(message) {
+      return {
+        role: message.role,
+        content: message.content ?? null,
+        tool_calls: message.tool_calls || undefined
+      };
+    }
+
+    function requestLog(result, badge, title, id = "") {
+      return logEntry("api", badge, title, publicRequest(result.endpoint, result.body), true, "", id);
+    }
+
+    function responseLog(result, badge = "Reply", title = "LLM response", id = "") {
+      return logEntry("api", badge, title, {
+        elapsed_ms: result.elapsedMs,
+        attempts: result.attempts || 1,
+        message: compactMessage(result.message),
+        usage: result.data.usage || null
+      }, true, "", id);
+    }
+
+    function errorResult(step, error) {
+      return {
+        transcript: [
+          ...step.preview,
+          ["note", error?.message || "The live API request failed."]
+        ],
+        logs: [
+          ...step.previewLogs,
+          logEntry("warning", "Error", "Live request did not complete", error?.message || String(error), true)
+        ]
+      };
+    }
+
+    function memoryCallOneBody() {
+      return {
+        messages: [
+          msg("system", "Be brief and direct. Reply in one short sentence."),
+          msg("user", "My name is Mira.")
+        ]
+      };
+    }
+
+    function memoryDropBody() {
+      return {
+        messages: [
+          msg("system", "Be brief and direct. If a fact is not in the messages, say you do not have it in this request."),
+          msg("user", "What is my name?")
+        ]
+      };
+    }
+
+    function memoryReplayBody(assistantTurn) {
+      return {
+        messages: [
+          msg("system", "Be brief and direct. Answer using only facts in the provided messages."),
+          msg("user", "My name is Mira."),
+          msg("assistant", assistantTurn),
+          msg("user", "What is my name?")
+        ]
+      };
+    }
+
+    function rewriteFirstBody() {
+      return {
+        messages: [
+          msg("system", "For this demo, invent a two-word project codename. Reply in exactly one short sentence in the form: Let's use <codename>."),
+          msg("user", "Pick a project codename for this demo.")
+        ]
+      };
+    }
+
+    function rewriteSecondBody(assistantTurn) {
+      return {
+        messages: [
+          msg("system", "Answer based only on the messages provided. Reply in one short sentence."),
+          msg("user", "Pick a project codename for this demo."),
+          msg("assistant", assistantTurn),
+          msg("user", "What codename did you pick?")
+        ]
+      };
+    }
+
+    function weakToolBody(extraMessages = []) {
+      return {
+        messages: [
+          msg("system", userCallInstruction),
+          msg("user", TAJ_USER_MESSAGE),
+          ...extraMessages
+        ]
+      };
+    }
+
+    function strongToolBody() {
+      return {
+        messages: [
+          msg("system", `${toolCallInstruction}\nFor this demo, emit the get_current_weather tool call before answering.`),
+          msg("user", TAJ_USER_MESSAGE)
+        ],
+        tools: [weatherTool],
+        tool_choice: { type: "function", function: { name: "get_current_weather" } }
+      };
+    }
+
+    async function runOneRequest() {
+      const request = {
+        messages: [
+          msg("system", "You are a helpful assistant. Keep the response to one sentence."),
+          msg("user", "Hello")
+        ]
+      };
+      const result = await callChatCompletion(request, "Single chat call");
+      return {
+        transcript: [
+          ["user", "Hello"],
+          noteWithLog("Harness sends API request 1. It includes the user message.", LOG_IDS.oneRequestRequest, "API request 1", "send event"),
+          ["assistant", assistantText(result.message) || "(empty assistant message)"]
+        ],
+        logs: [
+          requestLog(result, "API", "Request 1: POST /chat/completions", LOG_IDS.oneRequestRequest),
+          responseLog(result, "Reply", "Response 1: LLM response", LOG_IDS.oneRequestReply)
+        ]
+      };
+    }
+
+    async function runMemoryReplayHistory(update, state) {
+      if (state?.awaitingFollowup) {
+        const pending = state.awaitingFollowup;
+        update?.({
+          transcript: [
+            ["user", "My name is Mira."],
+            noteWithLog("API request 1 sent with the name message.", LOG_IDS.memoryReplayRequest1),
+            ["assistant", pending.firstText],
+            noteWithLog("API request 1 returned. The deck waited for the next send click.", LOG_IDS.memoryReplayReply1, "API request 1"),
+            ["user", "What is my name?"],
+            noteWithLog("API request 2 sent with the prior user+assistant turn replayed. Waiting for the live LLM response...", LOG_IDS.memoryReplayRequest2)
+          ],
+          logs: [
+            ...pending.firstLogs,
+            logEntry("api", "Live", "API request 2 in progress", publicRequest(DEFAULT_API_ENDPOINT, pending.replayRequest), true, "", LOG_IDS.memoryReplayRequest2)
+          ]
+        });
+        try {
+          const second = await callChatCompletion(pending.replayRequest, "Memory replay call");
+          state.awaitingFollowup = null;
+          return {
+            transcript: [
+              ["user", "My name is Mira."],
+              noteWithLog("API request 1 sent with the name message.", LOG_IDS.memoryReplayRequest1),
+              ["assistant", pending.firstText],
+              noteWithLog("API request 1 returned. The deck waited for the next send click.", LOG_IDS.memoryReplayReply1, "API request 1"),
+              ["user", "What is my name?"],
+              noteWithLog("API request 2 sent with the prior user+assistant turn replayed.", LOG_IDS.memoryReplayRequest2),
+              ["assistant", assistantText(second.message) || "(empty assistant message)"],
+              noteWithLog("The answer succeeds because API request 2 included the name.", LOG_IDS.memoryReplayRequest2, "API request 2")
+            ],
+            logs: [
+              ...pending.firstLogs,
+              requestLog(second, "API request 2", "History is replayed for the follow-up", LOG_IDS.memoryReplayRequest2),
+              responseLog(second, "Reply 2", "Follow-up succeeds", LOG_IDS.memoryReplayReply2)
+            ]
+          };
+        } catch (error) {
+          state.awaitingFollowup = null;
+          return {
+            transcript: [
+              ["user", "My name is Mira."],
+              noteWithLog("API request 1 sent with the name message.", LOG_IDS.memoryReplayRequest1),
+              ["assistant", pending.firstText],
+              ["user", "What is my name?"],
+              noteWithLog("API request 2 sent with the prior user+assistant turn replayed.", LOG_IDS.memoryReplayRequest2),
+              ["note", error?.message || "The live API request failed."]
+            ],
+            logs: [
+              ...pending.firstLogs,
+              logEntry("warning", "Error", "API request 2 live request did not complete", error?.message || String(error), true)
+            ]
+          };
+        }
+      }
+
+      const first = await callChatCompletion(memoryCallOneBody(), "Memory setup call");
+      const firstText = assistantText(first.message) || "Nice to meet you, Mira.";
+      const replayRequest = memoryReplayBody(firstText);
+      const firstLogs = [
+        requestLog(first, "API request 1", "Name is present in this request", LOG_IDS.memoryReplayRequest1),
+        responseLog(first, "Reply 1", "First LLM response", LOG_IDS.memoryReplayReply1)
+      ];
+      if (state) state.awaitingFollowup = { firstText, replayRequest, firstLogs };
+      return {
+        awaitingSend: true,
+        nextInput: "What is my name?",
+        transcript: [
+          ["user", "My name is Mira."],
+          noteWithLog("API request 1 sent with the name message.", LOG_IDS.memoryReplayRequest1),
+          ["assistant", firstText],
+          noteWithLog("API request 2 is prepared. Click send to trigger the second turn.", LOG_IDS.memoryReplayRequest2)
+        ],
+        logs: [
+          ...firstLogs,
+          preparedRequestLog("api", "API request 2 waiting for send: history will be replayed", replayRequest, true, LOG_IDS.memoryReplayRequest2)
+        ]
+      };
+    }
+
+    async function runMemoryDroppedHistory(update, state) {
+      if (state?.awaitingFollowup) {
+        const pending = state.awaitingFollowup;
+        update?.({
+          transcript: [
+            ["user", "My name is Mira."],
+            noteWithLog("API request 1 sent with the name message.", LOG_IDS.memoryDropRequest1),
+            ["assistant", pending.firstText],
+            noteWithLog("API request 1 returned. The deck waited for the next send click.", LOG_IDS.memoryDropReply1, "API request 1"),
+            ["user", "What is my name?"],
+            noteWithLog("API request 2 sent with only the latest user question. Waiting for the live LLM response...", LOG_IDS.memoryDropRequest2)
+          ],
+          logs: [
+            ...pending.firstLogs,
+            logEntry("api", "Live", "API request 2 in progress", publicRequest(DEFAULT_API_ENDPOINT, pending.droppedRequest), true, "", LOG_IDS.memoryDropRequest2)
+          ]
+        });
+        try {
+          const dropped = await callChatCompletion(pending.droppedRequest, "Dropped-history call");
+          state.awaitingFollowup = null;
+          return {
+            transcript: [
+              ["user", "My name is Mira."],
+              noteWithLog("API request 1 sent with the name message.", LOG_IDS.memoryDropRequest1),
+              ["assistant", pending.firstText],
+              noteWithLog("API request 1 returned. The deck waited for the next send click.", LOG_IDS.memoryDropReply1, "API request 1"),
+              ["user", "What is my name?"],
+              noteWithLog("API request 2 sent with only the latest user question; the prior turn was omitted.", LOG_IDS.memoryDropRequest2),
+              ["assistant", assistantText(dropped.message) || "(empty assistant message)"],
+              noteWithLog("The answer fails because API request 2 did not include the name.", LOG_IDS.memoryDropRequest2, "API request 2")
+            ],
+            logs: [
+              ...pending.firstLogs,
+              requestLog(dropped, "API request 2", "History is dropped for the same question", LOG_IDS.memoryDropRequest2),
+              responseLog(dropped, "Reply 2", "Follow-up fails", LOG_IDS.memoryDropReply2),
+              logEntry("warning", "Result", "The apparent memory disappears", "Nothing about Mira is present in the API call, so the model has no conversation memory to use.", true)
+            ]
+          };
+        } catch (error) {
+          state.awaitingFollowup = null;
+          return {
+            transcript: [
+              ["user", "My name is Mira."],
+              noteWithLog("API request 1 sent with the name message.", LOG_IDS.memoryDropRequest1),
+              ["assistant", pending.firstText],
+              ["user", "What is my name?"],
+              noteWithLog("API request 2 sent with only the latest user question; the prior turn was omitted.", LOG_IDS.memoryDropRequest2),
+              ["note", error?.message || "The live API request failed."]
+            ],
+            logs: [
+              ...pending.firstLogs,
+              logEntry("warning", "Error", "API request 2 live request did not complete", error?.message || String(error), true)
+            ]
+          };
+        }
+      }
+
+      const first = await callChatCompletion(memoryCallOneBody(), "Memory setup call");
+      const firstText = assistantText(first.message) || "Nice to meet you, Mira.";
+      const droppedRequest = memoryDropBody();
+      const firstLogs = [
+        requestLog(first, "API request 1", "Name is present in this request", LOG_IDS.memoryDropRequest1),
+        responseLog(first, "Reply 1", "First LLM response", LOG_IDS.memoryDropReply1)
+      ];
+      if (state) state.awaitingFollowup = { firstText, droppedRequest, firstLogs };
+      return {
+        awaitingSend: true,
+        nextInput: "What is my name?",
+        transcript: [
+          ["user", "My name is Mira."],
+          noteWithLog("API request 1 sent with the name message.", LOG_IDS.memoryDropRequest1),
+          ["assistant", firstText],
+          noteWithLog("API request 2 is prepared. Click send to trigger the dropped-history second turn.", LOG_IDS.memoryDropRequest2)
+        ],
+        logs: [
+          ...firstLogs,
+          preparedRequestLog("api", "API request 2 waiting for send: history will be dropped", droppedRequest, true, LOG_IDS.memoryDropRequest2)
+        ]
+      };
+    }
+
+    async function runRewriteChronological(update, state) {
+      if (state?.awaitingFollowup) {
+        const pending = state.awaitingFollowup;
+        update?.({
+          transcript: [
+            ["user", "Pick a project codename for this demo."],
+            noteWithLog("API request 1 sent with the codename prompt.", LOG_IDS.rewriteRequest1),
+            ["assistant", pending.visibleAssistant],
+            noteWithLog("API request 1 returned. The deck waited for the next send click.", LOG_IDS.rewriteReply1, "API request 1"),
+            noteWithLog("Before API request 2, the harness rewrote the assistant turn.", LOG_IDS.rewriteMutation),
+            ["user", "What codename did you pick?"],
+            noteWithLog("API request 2 sent with the edited assistant turn. Waiting for the live LLM response...", LOG_IDS.rewriteRequest2)
+          ],
+          logs: [
+            ...pending.firstLogs,
+            logEntry("diff", "Edit", "Harness mutation before API request 2", `- assistant: ${pending.visibleAssistant}\n+ assistant: ${pending.editedAssistant}`, true, "", LOG_IDS.rewriteMutation),
+            logEntry("api", "Live", "API request 2 in progress", publicRequest(DEFAULT_API_ENDPOINT, pending.secondRequest), true, "", LOG_IDS.rewriteRequest2)
+          ]
+        });
+        try {
+          const second = await callChatCompletion(pending.secondRequest, "Rewritten-history call");
+          state.awaitingFollowup = null;
+          return {
+            transcript: [
+              ["user", "Pick a project codename for this demo."],
+              noteWithLog("API request 1 sent with the codename prompt.", LOG_IDS.rewriteRequest1),
+              ["assistant", pending.visibleAssistant],
+              noteWithLog("API request 1 returned. The deck waited for the next send click.", LOG_IDS.rewriteReply1, "API request 1"),
+              noteWithLog("Before API request 2, the harness rewrote the assistant turn.", LOG_IDS.rewriteMutation),
+              ["user", "What codename did you pick?"],
+              noteWithLog("API request 2 sent with the edited assistant turn.", LOG_IDS.rewriteRequest2),
+              ["assistant", assistantText(second.message) || "(empty assistant message)"],
+              noteWithLog("The answer follows the edited API history, not a private memory of the visible chat.", LOG_IDS.rewriteRequest2, "API request 2")
+            ],
+            logs: [
+              ...pending.firstLogs,
+              logEntry("diff", "Edit", "Harness mutation before API request 2", `- assistant: ${pending.visibleAssistant}\n+ assistant: ${pending.editedAssistant}`, true, "", LOG_IDS.rewriteMutation),
+              requestLog(second, "API request 2", "Edited assistant turn is replayed for the follow-up", LOG_IDS.rewriteRequest2),
+              responseLog(second, "Reply 2", "Follow-up uses edited history", LOG_IDS.rewriteReply2),
+              logEntry("warning", "Rule", "No private transcript exists", "The second response is based on the messages in API request 2, not on what was displayed in the browser before the harness edit.", true)
+            ]
+          };
+        } catch (error) {
+          state.awaitingFollowup = null;
+          return {
+            transcript: [
+              ["user", "Pick a project codename for this demo."],
+              noteWithLog("API request 1 sent with the codename prompt.", LOG_IDS.rewriteRequest1),
+              ["assistant", pending.visibleAssistant],
+              noteWithLog("Before API request 2, the harness rewrote the assistant turn.", LOG_IDS.rewriteMutation),
+              ["user", "What codename did you pick?"],
+              noteWithLog("API request 2 sent with the edited assistant turn.", LOG_IDS.rewriteRequest2),
+              ["note", error?.message || "The live API request failed."]
+            ],
+            logs: [
+              ...pending.firstLogs,
+              logEntry("diff", "Edit", "Harness mutation before API request 2", `- assistant: ${pending.visibleAssistant}\n+ assistant: ${pending.editedAssistant}`, true, "", LOG_IDS.rewriteMutation),
+              logEntry("warning", "Error", "API request 2 live request did not complete", error?.message || String(error), true)
+            ]
+          };
+        }
+      }
+
+      const first = await callChatCompletion(rewriteFirstBody(), "Codename setup call");
+      const visibleAssistant = assistantText(first.message) || "(empty assistant message)";
+      const editedAssistant = "Let's use Project Brainwash.";
+      const secondRequest = rewriteSecondBody(editedAssistant);
+      const firstLogs = [
+        requestLog(first, "API request 1", "Request asks the LLM for a codename", LOG_IDS.rewriteRequest1),
+        responseLog(first, "Reply 1", "Visible assistant response", LOG_IDS.rewriteReply1)
+      ];
+      if (state) state.awaitingFollowup = { visibleAssistant, editedAssistant, secondRequest, firstLogs };
+      return {
+        awaitingSend: true,
+        nextInput: "What codename did you pick?",
+        transcript: [
+          ["user", "Pick a project codename for this demo."],
+          noteWithLog("API request 1 sent with the codename prompt.", LOG_IDS.rewriteRequest1),
+          ["assistant", visibleAssistant],
+          noteWithLog("API request 2 is prepared. Click send to trigger the rewritten-history follow-up.", LOG_IDS.rewriteRequest2)
+        ],
+        logs: [
+          ...firstLogs,
+          preparedRequestLog("diff", "API request 2 waiting for send: assistant turn will be rewritten", `- assistant: ${visibleAssistant}\n+ assistant: ${editedAssistant}`, true, LOG_IDS.rewriteMutation),
+          preparedRequestLog("api", "API request 2 waiting for send: edited history will be replayed", secondRequest, true, LOG_IDS.rewriteRequest2)
+        ]
+      };
+    }
+
+    async function runWeakTool(update, state) {
+      if (state?.awaitingFollowup) {
+        const pending = state.awaitingFollowup;
+        update?.({
+          transcript: [
+            ["system", userCallInstruction],
+            ["user", TAJ_USER_MESSAGE],
+            noteWithLog("API request 1 sent with only messages.", LOG_IDS.callUserRequest1),
+            ["assistant", pending.firstText],
+            noteWithLog("API request 1 returned. The deck waited for the next send click.", LOG_IDS.callUserReply1, "API request 1"),
+            ["user", USER_TEMPERATURE_REPLY],
+            noteWithLog("API request 2 sent with the human temperature value. Waiting for the live LLM response...", LOG_IDS.callUserRequest2)
+          ],
+          logs: [
+            ...pending.firstLogs,
+            logEntry("api", "Live", "API request 2 in progress", publicRequest(DEFAULT_API_ENDPOINT, pending.secondRequest), true, "", LOG_IDS.callUserRequest2)
+          ]
+        });
+        try {
+          const second = await callChatCompletion(pending.secondRequest, "Call-user follow-up request");
+          state.awaitingFollowup = null;
+          return {
+            transcript: [
+              ["system", userCallInstruction],
+              ["user", TAJ_USER_MESSAGE],
+              noteWithLog("API request 1 sent with only messages.", LOG_IDS.callUserRequest1),
+              ["assistant", pending.firstText],
+              noteWithLog("API request 1 returned. The deck waited for the next send click.", LOG_IDS.callUserReply1, "API request 1"),
+              ["user", USER_TEMPERATURE_REPLY],
+              noteWithLog("API request 2 sent with the human temperature value.", LOG_IDS.callUserRequest2),
+              ["assistant", assistantText(second.message) || "(empty assistant message)"]
+            ],
+            logs: [
+              ...pending.firstLogs,
+              requestLog(second, "API request 2", "Human temperature value is appended as user text", LOG_IDS.callUserRequest2),
+              responseLog(second, "Reply 2", "Final LLM response", LOG_IDS.callUserReply2)
+            ]
+          };
+        } catch (error) {
+          state.awaitingFollowup = null;
+          return {
+            transcript: [
+              ["system", userCallInstruction],
+              ["user", TAJ_USER_MESSAGE],
+              ["assistant", pending.firstText],
+              ["user", USER_TEMPERATURE_REPLY],
+              noteWithLog("API request 2 sent with the human temperature value.", LOG_IDS.callUserRequest2),
+              ["note", error?.message || "The live API request failed."]
+            ],
+            logs: [
+              ...pending.firstLogs,
+              logEntry("warning", "Error", "API request 2 live request did not complete", error?.message || String(error), true)
+            ]
+          };
+        }
+      }
+
+      const first = await callChatCompletion(weakToolBody(), "Call-user first request");
+      const firstText = assistantText(first.message) || "What is the current weather in Agra?";
+      const secondRequest = weakToolBody([
+        msg("assistant", firstText),
+        msg("user", USER_TEMPERATURE_REPLY)
+      ]);
+      const firstLogs = [
+        requestLog(first, "API request 1", "Message-only request asks the model to call the user", LOG_IDS.callUserRequest1),
+        responseLog(first, "Reply 1", "Model calls the user through chat", LOG_IDS.callUserReply1),
+        logEntry("warning", "Why", "Instruction target is the user", "The model received only natural-language instructions, so a normal assistant chat message is the available response shape.", true)
+      ];
+      if (state) state.awaitingFollowup = { firstText, secondRequest, firstLogs };
+      return {
+        awaitingSend: true,
+        nextInput: USER_TEMPERATURE_REPLY,
+        transcript: [
+          ["system", userCallInstruction],
+          ["user", TAJ_USER_MESSAGE],
+          noteWithLog("API request 1 sent with only messages.", LOG_IDS.callUserRequest1),
+          ["assistant", firstText],
+          noteWithLog("API request 2 is prepared. Click send to append the human temperature value.", LOG_IDS.callUserRequest2)
+        ],
+        logs: [
+          ...firstLogs,
+          preparedRequestLog("api", "API request 2 waiting for send: temperature value will be appended", secondRequest, true, LOG_IDS.callUserRequest2)
+        ]
+      };
+    }
+
+    function parseToolArguments(toolCall) {
+      const raw = toolCall?.function?.arguments;
+      if (!raw) return {};
+      if (typeof raw === "object") return raw;
+      try {
+        return JSON.parse(raw);
+      } catch {
+        return {};
+      }
+    }
+
+    function executeWeatherTool(args) {
+      const city = String(args.city || "Agra");
+      return {
+        city,
+        condition: "showers likely",
+        temperature_c: 31,
+        precipitation_probability: 0.78,
+        source: "demo weather tool"
+      };
+    }
+
+    function toolCallBubbleText(toolName, args) {
+      const city = String(args.city || "Agra");
+      const date = args.date ? `,\n  "date": "${String(args.date)}"` : "";
+      return [
+        "assistant.tool_call",
+        "{",
+        `  "name": "${toolName}",`,
+        `  "arguments": { "city": "${city}"${date} }`,
+        "}"
+      ].join("\n");
+    }
+
+    function toolResponseBubbleText(toolName, result) {
+      return [
+        "tool.response",
+        "{",
+        `  "city": "${String(result.city || "Agra")}",`,
+        `  "condition": "${String(result.condition || "unknown")}",`,
+        `  "temperature_c": ${Number(result.temperature_c ?? 31)},`,
+        `  "precipitation_probability": ${Number(result.precipitation_probability ?? 0)}`,
+        "}"
+      ].join("\n");
+    }
+
+    function toolCallOrWarning(first) {
+      const toolCall = first.message?.tool_calls?.[0];
+      if (!toolCall) {
+        return {
+          toolCall: null,
+          logs: [logEntry("warning", "No tool", "Model returned chat instead of a tool call", compactMessage(first.message), true)]
+        };
+      }
+      return { toolCall, logs: [] };
+    }
+
+    async function runStrongToolRequest(update, state) {
+      if (state?.awaitingFollowup) {
+        const pending = state.awaitingFollowup;
+        update?.({
+          focusRole: "tool-call",
+          transcript: [
+            ["system", toolCallInstruction],
+            ["user", TAJ_USER_MESSAGE],
+            noteWithLog("API request 1 sent with the tool schema.", LOG_IDS.callToolRequest1),
+            ["tool-call", pending.toolCallText],
+            ["tool-response", pending.toolResponseText],
+            noteWithLog("API request 2 sent with the tool result. Waiting for the live LLM response...", LOG_IDS.callToolRequest2)
+          ],
+          logs: [
+            ...pending.firstLogs,
+            pending.toolLog,
+            logEntry("api", "Live", "API request 2 in progress", publicRequest(DEFAULT_API_ENDPOINT, pending.finalRequest), true, "", LOG_IDS.callToolRequest2)
+          ]
+        });
+        try {
+          const second = await callChatCompletion(pending.finalRequest, "Final answer call");
+          state.awaitingFollowup = null;
+          return {
+            transcript: [
+              ["system", toolCallInstruction],
+              ["user", TAJ_USER_MESSAGE],
+              noteWithLog("API request 1 sent with the tool schema.", LOG_IDS.callToolRequest1),
+              ["tool-call", pending.toolCallText],
+              ["tool-response", pending.toolResponseText],
+              noteWithLog("API request 2 sent with the tool result.", LOG_IDS.callToolRequest2),
+              ["assistant", assistantText(second.message) || "(empty assistant message)"]
+            ],
+            logs: [
+              ...pending.firstLogs,
+              pending.toolLog,
+              requestLog(second, "API request 2", "Tool result is appended for the final answer", LOG_IDS.callToolRequest2),
+              responseLog(second, "Reply 2", "Final LLM response", LOG_IDS.callToolReply2)
+            ]
+          };
+        } catch (error) {
+          state.awaitingFollowup = null;
+          return {
+            transcript: [
+              ["system", toolCallInstruction],
+              ["user", TAJ_USER_MESSAGE],
+              ["tool-call", pending.toolCallText],
+              ["tool-response", pending.toolResponseText],
+              noteWithLog("API request 2 sent with the tool result.", LOG_IDS.callToolRequest2),
+              ["note", error?.message || "The live API request failed."]
+            ],
+            logs: [
+              ...pending.firstLogs,
+              pending.toolLog,
+              logEntry("warning", "Error", "API request 2 live request did not complete", error?.message || String(error), true)
+            ]
+          };
+        }
+      }
+
+      const first = await callChatCompletion(strongToolBody(), "Tool-call request");
+      const { toolCall, logs } = toolCallOrWarning(first);
+      const firstLogs = [
+        requestLog(first, "API request 1", "Tool schema tells the model to call the tool", LOG_IDS.callToolRequest1),
+        responseLog(first, "Reply 1", toolCall ? "Assistant response is a tool-call object" : "LLM response", LOG_IDS.callToolReply1),
+        ...logs
+      ];
+      if (!toolCall) {
+        return {
+          transcript: [
+            ["system", toolCallInstruction],
+            ["user", TAJ_USER_MESSAGE],
+            ["assistant", assistantText(first.message) || "(empty assistant message)"]
+          ],
+          logs: firstLogs
+        };
+      }
+
+      const followup = prepareToolFollowup(first, toolCall, firstLogs, state);
+      if (!state) return followup;
+      return runStrongToolRequest(update, state);
+    }
+
+    function prepareToolFollowup(first, toolCall, firstLogs, state) {
+      const args = parseToolArguments(toolCall);
+      const toolResult = executeWeatherTool(args);
+      const toolName = toolCall.function?.name || "get_current_weather";
+      const toolCallId = toolCall.id || "call_weather_01";
+      const assistantToolMessage = {
+        role: "assistant",
+        content: first.message.content ?? null,
+        tool_calls: [
+          {
+            ...toolCall,
+            id: toolCallId
+          }
+        ]
+      };
+      const finalRequest = {
+        messages: [
+          msg("system", toolCallInstruction),
+          msg("user", TAJ_USER_MESSAGE),
+          assistantToolMessage,
+          {
+            role: "tool",
+            tool_call_id: toolCallId,
+            name: toolName,
+            content: JSON.stringify(toolResult)
+          }
+        ],
+        tools: [weatherTool]
+      };
+      const toolLog = logEntry("tool", "Tool", "Harness executes the function", {
+        name: toolName,
+        arguments: args,
+        result: toolResult
+      }, true, "", LOG_IDS.callToolExecution);
+      const toolCallText = toolCallBubbleText(toolName, args);
+      const toolResponseText = toolResponseBubbleText(toolName, toolResult);
+      if (state) {
+        state.awaitingFollowup = { toolName, args, finalRequest, firstLogs, toolLog, toolCallText, toolResponseText };
+      }
+      return {
+        awaitingSend: true,
+        focusRole: "tool-call",
+        nextInput: TOOL_CONTINUE_PROMPT,
+        transcript: [
+          ["system", toolCallInstruction],
+          ["user", TAJ_USER_MESSAGE],
+          noteWithLog("API request 1 sent with the tool schema.", LOG_IDS.callToolRequest1),
+          ["tool-call", toolCallText],
+          ["tool-response", toolResponseText],
+          noteWithLog("API request 2 is prepared with the tool result.", LOG_IDS.callToolRequest2)
+        ],
+        logs: [
+          ...firstLogs,
+          toolLog,
+          preparedRequestLog("api", "API request 2 prepared: tool result will be appended", finalRequest, true, LOG_IDS.callToolRequest2)
+        ]
+      };
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    function payloadText(payload) {
+      if (typeof payload === "string") return payload;
+      return JSON.stringify(payload, null, 2);
+    }
+
+    function roleLabel(role) {
+      if (role === "assistant" || role === "tool-call") return "LLM";
+      if (role === "tool-response" || role === "system" || role === "note") return "Harness";
+      return "User";
+    }
+
+    function roleAvatar(role) {
+      if (role === "assistant" || role === "tool-call") return "L";
+      if (role === "tool-response" || role === "system" || role === "note") return "H";
+      return "U";
+    }
+
+    function renderBubbleBody(role, text) {
+      return escapeHtml(String(text ?? ""));
+    }
+
+    function visibleChatTranscript(transcript) {
+      return transcript.filter(([role]) => role !== "system");
+    }
+
+    function chatMessageKey([role, text, meta]) {
+      return JSON.stringify([
+        role,
+        String(text ?? ""),
+        meta?.logTarget || "",
+        meta?.linkText || "",
+        meta?.logRelation || ""
+      ]);
+    }
+
+    function commonPrefixLength(left, right) {
+      const limit = Math.min(left.length, right.length);
+      for (let index = 0; index < limit; index += 1) {
+        if (left[index] !== right[index]) return index;
+      }
+      return limit;
+    }
+
+    function sameMessageKeys(left, right) {
+      return left.length === right.length && commonPrefixLength(left, right) === left.length;
+    }
+
+    function clearChatRevealTimer(state) {
+      if (state?.chatReveal?.timer) window.clearTimeout(state.chatReveal.timer);
+      if (state) state.chatReveal = null;
+    }
+
+    function stagedChatTranscript(root, state, targetTranscript, animate) {
+      if (!animate || targetTranscript.length === 0) {
+        clearChatRevealTimer(state);
+        return targetTranscript;
+      }
+
+      const keys = targetTranscript.map(chatMessageKey);
+      if (!state.chatReveal) {
+        state.chatReveal = {
+          target: targetTranscript,
+          targetKeys: keys,
+          displayed: targetTranscript.slice(0, 1),
+          displayedKeys: keys.slice(0, 1),
+          timer: null
+        };
+      } else {
+        state.chatReveal.target = targetTranscript;
+        state.chatReveal.targetKeys = keys;
+      }
+
+      const reveal = state.chatReveal;
+      if (!sameMessageKeys(reveal.displayedKeys, reveal.targetKeys) && !reveal.timer) {
+        reveal.timer = window.setTimeout(() => {
+          reveal.timer = null;
+          const retainedPrefix = commonPrefixLength(reveal.displayedKeys, reveal.targetKeys);
+          const nextCount = retainedPrefix < reveal.displayedKeys.length
+            ? Math.min(retainedPrefix + 1, reveal.target.length)
+            : Math.min(reveal.displayed.length + 1, reveal.target.length);
+          reveal.displayed = reveal.target.slice(0, nextCount);
+          reveal.displayedKeys = reveal.targetKeys.slice(0, nextCount);
+          renderDemo(root);
+        }, CHAT_MESSAGE_REVEAL_DELAY_MS);
+      }
+
+      return reveal.displayed;
+    }
+
+    function shouldReduceMotion() {
+      return window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+    }
+
+    function logPayloadMessages(payload) {
+      if (Array.isArray(payload?.messages)) return payload.messages;
+      if (Array.isArray(payload?.body?.messages)) return payload.body.messages;
+      return [];
+    }
+
+    function logResponseMessage(payload) {
+      const message = payload?.message;
+      return message && typeof message === "object" ? message : null;
+    }
+
+    function sameMessageContent(role, logContent, chatContent) {
+      const logText = String(logContent ?? "");
+      const chatText = String(chatContent ?? "");
+      if (logText === chatText) return true;
+      return role === "system" && logText.includes(chatText);
+    }
+
+    function findRequestLogTarget(role, text, logs) {
+      return logs.find((log) => {
+        if (!log.id) return false;
+        return logPayloadMessages(log.payload).some((message) => {
+          return message?.role === role && sameMessageContent(role, message.content, text);
+        });
+      })?.id || "";
+    }
+
+    function findResponseLogTarget(role, text, logs) {
+      return logs.find((log) => {
+        if (!log.id) return false;
+        const message = logResponseMessage(log.payload);
+        return message?.role === role && sameMessageContent(role, message.content, text);
+      })?.id || "";
+    }
+
+    function findToolCallLogTarget(text, logs) {
+      const chatText = String(text ?? "");
+      return logs.find((log) => {
+        if (!log.id) return false;
+        const toolCalls = logResponseMessage(log.payload)?.tool_calls;
+        if (!Array.isArray(toolCalls) || toolCalls.length === 0) return false;
+        return toolCalls.some((toolCall) => {
+          const name = toolCall?.function?.name || "";
+          return !name || chatText.includes(name);
+        });
+      })?.id || "";
+    }
+
+    function findChatLogTarget(role, text, logs) {
+      if (!Array.isArray(logs) || role === "note") return "";
+      if (role === "assistant") return findResponseLogTarget("assistant", text, logs);
+      if (role === "tool-call") return findToolCallLogTarget(text, logs);
+      if (role === "tool-response") return logs.find((log) => log.id && log.kind === "tool")?.id || "";
+      if (role === "user" || role === "system") return findRequestLogTarget(role, text, logs);
+      return "";
+    }
+
+    function linkedLogRelation(role) {
+      if (role === "user" || role === "system") return "included in API request";
+      if (role === "assistant" || role === "tool-call") return "returned by API response";
+      if (role === "tool-response") return "appended by harness";
+      return "";
+    }
+
+    function linkChatTranscriptToLogs(transcript, logs) {
+      return transcript.map(([role, text, meta]) => {
+        if (meta?.logTarget) return [role, text, meta];
+        const logTarget = findChatLogTarget(role, text, logs);
+        if (!logTarget) return [role, text, meta];
+        const logRelation = linkedLogRelation(role);
+        return [role, text, { ...(meta || {}), logTarget, logRelation }];
+      });
+    }
+
+    function createMessageRow(role, text, meta) {
+      const row = document.createElement("div");
+      row.className = `message-row ${role}`;
+      row.dataset.messageKey = chatMessageKey([role, text, meta]);
+      if (meta?.logTarget) {
+        row.dataset.logTarget = meta.logTarget;
+        row.tabIndex = 0;
+        row.setAttribute("role", "button");
+        const relation = meta.logRelation ? `: ${meta.logRelation}` : "";
+        row.setAttribute("aria-label", `Show related harness log for ${roleLabel(role)} message${relation}`);
+        row.title = meta.logRelation || "Show related harness log";
+      }
+
+      const avatar = document.createElement("div");
+      avatar.className = "avatar";
+      avatar.textContent = roleAvatar(role);
+
+      const bubble = document.createElement("div");
+      bubble.className = "bubble";
+
+      const label = document.createElement("span");
+      label.className = "bubble-label";
+      label.textContent = roleLabel(role);
+
+      const body = document.createElement("span");
+      body.className = "bubble-body";
+      body.innerHTML = renderBubbleBody(role, text);
+
+      bubble.append(label, body);
+      if (meta?.logRelation) {
+        const relation = document.createElement("span");
+        relation.className = "bubble-relation";
+        relation.textContent = meta.logRelation;
+        bubble.append(relation);
+      }
+      row.append(avatar, bubble);
+      return row;
+    }
+
+    function renderChatMessages(chatEl, transcript) {
+      const keys = transcript.map(chatMessageKey);
+      let changed = false;
+      let added = false;
+
+      Array.from(chatEl.children).forEach((child, index) => {
+        if (child.dataset.messageKey !== keys[index]) {
+          child.remove();
+          changed = true;
+        }
+      });
+
+      transcript.forEach(([role, text, meta], index) => {
+        const existing = chatEl.children[index];
+        if (existing?.dataset.messageKey === keys[index]) return;
+
+        const row = createMessageRow(role, text, meta);
+        row.classList.add("is-entering");
+        row.addEventListener("animationend", () => row.classList.remove("is-entering"), { once: true });
+        chatEl.insertBefore(row, chatEl.children[index] || null);
+        changed = true;
+        added = true;
+      });
+
+      return { changed, added };
+    }
+
+    function scrollChat(chatEl, targetTop, force = false) {
+      if (!chatEl) return;
+      const distanceFromBottom = chatEl.scrollHeight - chatEl.scrollTop - chatEl.clientHeight;
+      const nearBottom = distanceFromBottom < 80;
+      if (!force && !nearBottom) return;
+
+      window.requestAnimationFrame(() => {
+        chatEl.scrollTo({
+          top: Math.max(0, targetTop),
+          behavior: shouldReduceMotion() ? "auto" : "smooth"
+        });
+      });
+    }
+
+    function sendIconSvg() {
+      return `
+        <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M22 2 11 13"></path>
+          <path d="m22 2-7 20-4-9-9-4 20-7Z"></path>
+        </svg>
+      `;
+    }
+
+    function getDemoState(key) {
+      if (!demoStates.has(key)) {
+        demoStates.set(key, { step: 0, result: null, loading: false, submitted: false });
+      }
+      return demoStates.get(key);
+    }
+
+    function getDemoInput(target) {
+      return target instanceof Element ? target.closest("[data-input]") : null;
+    }
+
+    function ensureInputNotice(root) {
+      const composer = root.querySelector(".composer");
+      if (!composer) return null;
+      let notice = composer.querySelector("[data-input-notice]");
+      if (!notice) {
+        notice = document.createElement("div");
+        notice.className = "input-notice";
+        notice.dataset.inputNotice = "";
+        notice.setAttribute("role", "status");
+        notice.setAttribute("aria-live", "polite");
+        composer.appendChild(notice);
+      }
+      return notice;
+    }
+
+    function hideInputNotice(notice) {
+      if (!notice) return;
+      const timer = inputNoticeTimers.get(notice);
+      if (timer) window.clearTimeout(timer);
+      inputNoticeTimers.delete(notice);
+      notice.classList.remove("show");
+      notice.textContent = "";
+    }
+
+    function showReadonlyInputNotice(inputEl) {
+      const root = inputEl.closest("[data-demo]");
+      if (!root) return;
+      const notice = ensureInputNotice(root);
+      if (!notice) return;
+      const timer = inputNoticeTimers.get(notice);
+      if (timer) window.clearTimeout(timer);
+      notice.textContent = READONLY_INPUT_NOTICE;
+      notice.classList.add("show");
+      inputNoticeTimers.set(notice, window.setTimeout(() => hideInputNotice(notice), 3600));
+    }
+
+    function updateLogScrollAffordance(logsEl) {
+      if (!logsEl) return;
+      const panel = logsEl.closest(".log-panel");
+      if (panel) panel.style.setProperty("--log-scroll-top", `${logsEl.offsetTop}px`);
+      const maxScroll = logsEl.scrollHeight - logsEl.clientHeight;
+      const canScroll = maxScroll > 1;
+      logsEl.classList.toggle("has-scroll-above", canScroll && logsEl.scrollTop > 1);
+      logsEl.classList.toggle("has-scroll-below", canScroll && logsEl.scrollTop < maxScroll - 1);
+    }
+
+    function ensureLogScrollShades(logsEl) {
+      const panel = logsEl?.closest(".log-panel");
+      if (!panel || panel.querySelector(".log-scroll-shade")) return;
+      ["top", "bottom"].forEach((position) => {
+        const shade = document.createElement("div");
+        shade.className = `log-scroll-shade ${position}`;
+        shade.setAttribute("aria-hidden", "true");
+        panel.appendChild(shade);
+      });
+    }
+
+    function wireLogScrollAffordance(logsEl) {
+      if (!logsEl || logsEl.dataset.scrollAffordanceReady) return;
+      ensureLogScrollShades(logsEl);
+      logsEl.dataset.scrollAffordanceReady = "true";
+      logsEl.addEventListener("scroll", () => updateLogScrollAffordance(logsEl), { passive: true });
+    }
+
+    function updateAllLogScrollAffordances(root = document) {
+      root.querySelectorAll("[data-logs]").forEach(updateLogScrollAffordance);
+    }
+
+    function updateTakeawayCtaMotion() {
+      const slide = document.querySelector(".takeaway-slide");
+      const cta = slide?.querySelector(".tool-cta");
+      const footer = document.querySelector(".bottom-nav");
+      if (!slide?.classList.contains("active") || !cta || !footer) return;
+
+      const previousAnimation = cta.style.animation;
+      const previousTransform = cta.style.transform;
+      cta.style.animation = "none";
+      cta.style.transform = "translateY(0)";
+
+      const ctaRect = cta.getBoundingClientRect();
+      const footerRect = footer.getBoundingClientRect();
+      const footerBounceY = Math.max(0, Math.round(footerRect.top - ctaRect.bottom - 10));
+      const reboundY = Math.round(footerBounceY * 0.34);
+      const nearFooterY = Math.round(footerBounceY * 0.78);
+      const settleY = Math.round(footerBounceY * 0.5);
+      const sideGap = Math.min(ctaRect.left, window.innerWidth - ctaRect.right);
+      const harnessWidth = Math.max(0, Math.round(sideGap - 14));
+
+      cta.style.setProperty("--cta-footer-y", `${footerBounceY}px`);
+      cta.style.setProperty("--cta-rebound-y", `${reboundY}px`);
+      cta.style.setProperty("--cta-near-footer-y", `${nearFooterY}px`);
+      cta.style.setProperty("--cta-settle-y", `${settleY}px`);
+      cta.style.setProperty("--cta-harness-width", `${harnessWidth}px`);
+      void cta.offsetWidth;
+      cta.style.animation = previousAnimation;
+      cta.style.transform = previousTransform;
+    }
+
+    function isInputEditKey(event) {
+      if (event.ctrlKey || event.metaKey) {
+        return ["v", "x", "z", "y"].includes(event.key.toLowerCase());
+      }
+      if (event.altKey) return false;
+      return event.key.length === 1 || ["Backspace", "Delete", "Enter"].includes(event.key);
+    }
+
+    function renderDemo(root) {
+      const key = root.dataset.demo;
+      const demo = demos[key];
+      if (!demo) return;
+
+      const state = getDemoState(key);
+      const stepIndex = Math.max(0, Math.min(demo.steps.length - 1, Number(state.step || root.dataset.step || 0)));
+      const step = demo.steps[stepIndex];
+      root.dataset.step = String(stepIndex);
+
+      const chatEl = root.querySelector("[data-chat]");
+      const logsEl = root.querySelector("[data-logs]");
+      const captionEl = root.querySelector("[data-caption]");
+      const inputEl = root.querySelector("[data-input]");
+      const sendButton = root.querySelector(".send-btn");
+      const noticeEl = ensureInputNotice(root);
+      const activeResult = state.result?.step === stepIndex ? state.result : null;
+      const transcript = state.loading
+        ? activeResult?.transcript || [...step.preview, ["note", "Waiting for the live LLM response..."]]
+        : activeResult?.transcript || (state.submitted ? step.preview : []);
+      const targetTranscript = visibleChatTranscript(transcript);
+      const visibleTranscript = stagedChatTranscript(root, state, targetTranscript, state.loading || state.submitted || Boolean(activeResult));
+      const logs = state.loading
+        ? activeResult?.logs || [...step.previewLogs, logEntry("api", "Live", "Request in progress", "The browser harness is waiting for the LLM API chat-completions response.", true)]
+        : activeResult?.logs || step.previewLogs;
+
+      inputEl.textContent = state.submitted ? "" : (activeResult?.nextInput || demo.input);
+      inputEl.classList.toggle("submitted", state.submitted);
+      inputEl.setAttribute("role", "textbox");
+      inputEl.setAttribute("aria-readonly", "true");
+      inputEl.setAttribute("aria-label", "Prepared chat message");
+      inputEl.setAttribute("spellcheck", "false");
+      inputEl.setAttribute("contenteditable", state.submitted ? "false" : "plaintext-only");
+      inputEl.tabIndex = state.submitted ? -1 : 0;
+      if (state.loading || state.submitted) hideInputNotice(noticeEl);
+      captionEl.innerHTML = `<strong>${escapeHtml(step.title)}</strong><span>${escapeHtml(step.note)}</span>`;
+      if (sendButton) {
+        const sendTooltip = state.loading
+          ? "Waiting for the LLM response."
+          : state.submitted
+            ? "Chat complete. Go to the next slide to continue."
+            : "Send message";
+        sendButton.disabled = state.loading || state.submitted;
+        sendButton.title = sendTooltip;
+        sendButton.dataset.tooltip = sendTooltip;
+        sendButton.setAttribute("aria-label", sendTooltip);
+        sendButton.innerHTML = sendIconSvg();
+      }
+      const linkedTranscript = linkChatTranscriptToLogs(visibleTranscript, logs);
+      const chatRender = renderChatMessages(chatEl, linkedTranscript);
+      const focusRow = activeResult?.focusRole
+        ? chatEl.querySelector(`.message-row.${activeResult.focusRole}`)
+        : null;
+      if (focusRow) {
+        const focusKey = focusRow.dataset.messageKey || "";
+        if (chatRender.added || state.chatFocusKey !== focusKey) {
+          state.chatFocusKey = focusKey;
+          scrollChat(chatEl, Math.max(0, focusRow.offsetTop - 64), true);
+        }
+      } else if (chatRender.added) {
+        state.chatFocusKey = "";
+        scrollChat(chatEl, chatEl.scrollHeight, true);
+      }
+
+      wireLogScrollAffordance(logsEl);
+      logsEl.innerHTML = logs.map((log) => {
+        const classes = ["log-entry", log.kind || "api", log.status].filter(Boolean).map(escapeHtml).join(" ");
+        const logId = log.id ? ` data-log-id="${escapeHtml(log.id)}"` : "";
+        return `
+          <details class="${classes}"${logId} ${log.open ? "open" : ""}>
+            <summary><span class="log-badge">${escapeHtml(log.badge || "Log")}</span><strong>${escapeHtml(log.title)}</strong></summary>
+            <pre>${escapeHtml(payloadText(log.payload))}</pre>
+          </details>
+        `;
+      }).join("");
+      logsEl.querySelectorAll("details").forEach((entry) => {
+        entry.addEventListener("toggle", () => window.requestAnimationFrame(() => updateLogScrollAffordance(logsEl)));
+      });
+      window.requestAnimationFrame(() => updateLogScrollAffordance(logsEl));
+    }
+
+    function renderDemoControls(key) {
+      const demo = demos[key];
+      const controls = document.querySelector(`[data-controls-for="${key}"]`);
+      const root = document.querySelector(`[data-demo="${key}"]`);
+      if (!demo || !controls || !root) return;
+      const state = getDemoState(key);
+
+      controls.innerHTML = demo.steps.map((step, index) => `
+        <button class="step-btn${index === Number(state.step || 0) ? " active" : ""}" type="button" data-demo-key="${escapeHtml(key)}" data-step="${index}">
+          ${escapeHtml(step.label)}
+        </button>
+      `).join("");
+    }
+
+    function setDemoStep(key, index) {
+      const root = document.querySelector(`[data-demo="${key}"]`);
+      if (!root) return;
+      const state = getDemoState(key);
+      state.step = index;
+      state.result = null;
+      state.loading = false;
+      state.submitted = false;
+      state.awaitingFollowup = null;
+      state.chatFocusKey = "";
+      clearChatRevealTimer(state);
+      root.dataset.step = String(index);
+      renderDemo(root);
+      renderDemoControls(key);
+    }
+
+    async function runLiveDemo(root) {
+      const key = root.dataset.demo;
+      const demo = demos[key];
+      const state = getDemoState(key);
+      if (!demo || state.loading) return;
+      const stepIndex = Math.max(0, Math.min(demo.steps.length - 1, Number(state.step || 0)));
+      const step = demo.steps[stepIndex];
+      const continuingConversation = Boolean(state.awaitingFollowup && state.result?.step === stepIndex);
+      state.loading = true;
+      state.submitted = true;
+      if (!continuingConversation) {
+        state.result = null;
+        state.chatFocusKey = "";
+        clearChatRevealTimer(state);
+      }
+      renderDemo(root);
+      try {
+        const update = (partial) => {
+          state.result = { step: stepIndex, ...partial };
+          renderDemo(root);
+        };
+        const result = await step.run(update, state, root);
+        state.submitted = !result?.awaitingSend;
+        state.result = { step: stepIndex, ...result };
+      } catch (error) {
+        state.result = { step: stepIndex, ...errorResult(step, error) };
+      } finally {
+        state.loading = false;
+        renderDemo(root);
+        renderDemoControls(key);
+      }
+    }
+
+    function makeSlideSlug(title, index) {
+      const slug = String(title || "")
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "");
+      return slug || `slide-${index + 1}`;
+    }
+
+    const slideSlugs = slideEls.map((slide, index) => makeSlideSlug(slide.dataset.title, index));
+    const slugCounts = new Map();
+    slideSlugs.forEach((slug, index) => {
+      const count = slugCounts.get(slug) || 0;
+      slugCounts.set(slug, count + 1);
+      slideSlugs[index] = count ? `${slug}-${count + 1}` : slug;
+      slideEls[index].dataset.slug = slideSlugs[index];
+    });
+
+    function createDots() {
+      dotsEl.innerHTML = slideEls.map((slide, index) => {
+        const title = slide.dataset.title || `Slide ${index + 1}`;
+        return `<button class="dot${index === 0 ? " active" : ""}" type="button" data-slide-dot="${index}" aria-label="Go to slide ${index + 1}: ${escapeHtml(title)}"></button>`;
+      }).join("");
+      dotsEl.querySelectorAll("[data-slide-dot]").forEach((dot) => {
+        dot.addEventListener("click", () => setSlide(Number(dot.dataset.slideDot)));
+      });
+    }
+
+    function slideIndexFromHash() {
+      const hash = decodeURIComponent(window.location.hash.replace(/^#/, "")).toLowerCase();
+      if (!hash) return 0;
+      const numberMatch = hash.match(/^(?:slide-?)?(\d+)$/);
+      if (numberMatch) {
+        const numericIndex = Number(numberMatch[1]) - 1;
+        if (numericIndex >= 0 && numericIndex < slideEls.length) return numericIndex;
+      }
+      const slugIndex = slideSlugs.indexOf(hash);
+      return slugIndex >= 0 ? slugIndex : 0;
+    }
+
+    function updateSlideUrl(index, replace = false) {
+      const nextHash = `#${slideSlugs[index]}`;
+      const nextUrl = `${window.location.pathname}${window.location.search}${nextHash}`;
+      if (replace) {
+        window.history.replaceState(null, "", nextUrl);
+      } else {
+        window.history.pushState(null, "", nextUrl);
+      }
+    }
+
+    function setSlide(index, options = {}) {
+      const { updateUrl = true, replaceUrl = false } = options;
+      const bounded = Math.max(0, Math.min(slideEls.length - 1, index));
+      slideEls[currentSlide].classList.remove("active");
+      currentSlide = bounded;
+      slideEls[currentSlide].classList.add("active");
+      progressEl.style.width = `${((currentSlide + 1) / slideEls.length) * 100}%`;
+      slideCountEl.textContent = `${currentSlide + 1} / ${slideEls.length}`;
+      prevSlideBtn.disabled = currentSlide === 0;
+      nextSlideBtn.disabled = currentSlide === slideEls.length - 1;
+      dotsEl.querySelectorAll(".dot").forEach((dot, idx) => {
+        dot.classList.toggle("active", idx === currentSlide);
+      });
+      if (updateUrl) updateSlideUrl(currentSlide, replaceUrl);
+      window.requestAnimationFrame(() => {
+        updateAllLogScrollAffordances(slideEls[currentSlide]);
+        updateTakeawayCtaMotion();
+      });
+    }
+
+    function nextSlide() {
+      setSlide(currentSlide + 1);
+    }
+
+    function prevSlide() {
+      setSlide(currentSlide - 1);
+    }
+
+    function focusLinkedLogCard(link) {
+      const root = link.closest("[data-demo]");
+      const targetId = link.dataset.logTarget;
+      const logsEl = root?.querySelector("[data-logs]");
+      if (!logsEl || !targetId) return;
+      const entry = logsEl.querySelector(`[data-log-id="${targetId}"]`);
+      if (!entry) return;
+      entry.open = true;
+      entry.scrollIntoView({ behavior: "smooth", block: "center" });
+      entry.querySelector("summary")?.focus({ preventScroll: true });
+      entry.classList.remove("flash");
+      void entry.offsetWidth;
+      entry.classList.add("flash");
+      window.setTimeout(() => entry.classList.remove("flash"), 1300);
+      window.requestAnimationFrame(() => updateLogScrollAffordance(logsEl));
+    }
+
+    renderChatSessionMeta();
+
+    document.querySelectorAll("[data-demo]").forEach((root) => {
+      if (!root.dataset.step) root.dataset.step = "0";
+      renderDemo(root);
+      renderDemoControls(root.dataset.demo);
+    });
+
+    document.addEventListener("click", (event) => {
+      const messageRow = event.target.closest(".message-row[data-log-target]");
+      if (messageRow) {
+        focusLinkedLogCard(messageRow);
+        return;
+      }
+
+      const sendButton = event.target.closest(".send-btn");
+      if (sendButton) {
+        const root = sendButton.closest("[data-demo]");
+        if (root) runLiveDemo(root);
+        return;
+      }
+
+      const button = event.target.closest("[data-demo-key][data-step]");
+      if (!button) return;
+      setDemoStep(button.dataset.demoKey, Number(button.dataset.step));
+    });
+
+    document.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      const messageRow = event.target.closest(".message-row[data-log-target]");
+      if (!messageRow) return;
+      event.preventDefault();
+      focusLinkedLogCard(messageRow);
+    });
+
+    document.addEventListener("beforeinput", (event) => {
+      const inputEl = getDemoInput(event.target);
+      if (!inputEl) return;
+      event.preventDefault();
+      showReadonlyInputNotice(inputEl);
+    });
+
+    document.addEventListener("paste", (event) => {
+      const inputEl = getDemoInput(event.target);
+      if (!inputEl) return;
+      event.preventDefault();
+      showReadonlyInputNotice(inputEl);
+    });
+
+    document.addEventListener("cut", (event) => {
+      const inputEl = getDemoInput(event.target);
+      if (!inputEl) return;
+      event.preventDefault();
+      showReadonlyInputNotice(inputEl);
+    });
+
+    document.addEventListener("drop", (event) => {
+      const inputEl = getDemoInput(event.target);
+      if (!inputEl) return;
+      event.preventDefault();
+      showReadonlyInputNotice(inputEl);
+    });
+
+    prevSlideBtn.addEventListener("click", prevSlide);
+    nextSlideBtn.addEventListener("click", nextSlide);
+    apiSettingsButton.addEventListener("click", openApiSettings);
+    apiSettingsClose.addEventListener("click", () => apiSettingsDialog.close());
+    apiSettingsClear.addEventListener("click", clearApiSettings);
+    apiSettingsForm.addEventListener("submit", saveApiSettings);
+    apiSettingsDialog.addEventListener("click", (event) => {
+      if (event.target === apiSettingsDialog) apiSettingsDialog.close();
+    });
+    window.addEventListener("hashchange", () => setSlide(slideIndexFromHash(), { updateUrl: false }));
+    window.addEventListener("resize", () => window.requestAnimationFrame(() => {
+      updateAllLogScrollAffordances();
+      updateTakeawayCtaMotion();
+    }));
+    window.addEventListener("keydown", (event) => {
+      const inputEl = getDemoInput(event.target);
+      if (inputEl) {
+        if (isInputEditKey(event)) {
+          event.preventDefault();
+          showReadonlyInputNotice(inputEl);
+        }
+        return;
+      }
+      if (event.key === "ArrowRight" || event.key === "PageDown") nextSlide();
+      if (event.key === "ArrowLeft" || event.key === "PageUp") prevSlide();
+    });
+
+    createDots();
+    setSlide(slideIndexFromHash(), { replaceUrl: true });
+  </script>
+</body>
+</html>

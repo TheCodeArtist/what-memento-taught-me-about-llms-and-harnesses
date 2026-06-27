@@ -1,0 +1,77 @@
+name: Deploy What Memento Taught Me to GitHub Pages
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Validate static site
+        shell: bash
+        run: |
+          test -f index.html
+          grep -q 'https://openrouter.ai/api/v1/chat/completions' index.html
+          test "$(grep -o '__OPENROUTER_API_KEY__' index.html | wc -l)" -eq 1
+          if grep -Eq 'sk-or-v1-[A-Za-z0-9_-]{20,}' index.html; then
+            echo 'Refusing to publish an OpenRouter key embedded in index.html.' >&2
+            exit 1
+          fi
+
+      - name: Embed OpenRouter API key in Pages artifact
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          key = os.environ.get("OPENROUTER_API_KEY", "").strip()
+          if not key:
+              raise SystemExit("OPENROUTER_API_KEY repository secret is not configured")
+
+          path = Path("index.html")
+          source = path.read_text(encoding="utf-8")
+          placeholder = "__OPENROUTER_API_KEY__"
+          if source.count(placeholder) != 1:
+              raise SystemExit("Expected exactly one OpenRouter API key placeholder")
+
+          escaped_key = json.dumps(key)[1:-1]
+          path.write_text(source.replace(placeholder, escaped_key), encoding="utf-8")
+          PY
+
+          if grep -q '__OPENROUTER_API_KEY__' index.html; then
+            echo 'OpenRouter API key placeholder was not replaced.' >&2
+            exit 1
+          fi
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload static site
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: .
+
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4
