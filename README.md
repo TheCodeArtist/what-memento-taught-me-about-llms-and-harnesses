@@ -42,6 +42,7 @@ The workflow at [`.github/workflows/pages.yml`](.github/workflows/pages.yml) val
 2. Open **Settings > Pages**.
 3. Set **Source** to **GitHub Actions**.
 4. Add an Actions repository secret named `OPENROUTER_API_KEY`.
-5. Run **Deploy static site to GitHub Pages** or push to the default branch.
+5. To include the final-slide banner, add an Actions repository secret named `GREAT_TOOL_BANNER_URL` containing its absolute `https://` URL. If this secret is absent or empty, the generated HTML contains no banner markup, link, or URL.
+6. Run **Deploy static site to GitHub Pages** or push to the default branch.
 
-The workflow rejects committed OpenRouter keys, requires exactly one placeholder, and embeds the repository secret only in the generated Pages artifact. The deployed key is recoverable from the public HTML and should be restricted accordingly.
+The workflow rejects committed OpenRouter keys, requires exactly one placeholder, and embeds the repository secret only in the generated Pages artifact. The deployed key is recoverable from the public HTML and should be restricted accordingly. The optional banner URL is likewise added only to the generated artifact when its secret is configured.

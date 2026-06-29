@@ -64,6 +64,55 @@ jobs:
             exit 1
           fi
 
+      - name: Render optional tool banner
+        env:
+          GREAT_TOOL_BANNER_URL: ${{ secrets.GREAT_TOOL_BANNER_URL }}
+        shell: bash
+        run: |
+          python - <<'PY'
+          import html
+          import os
+          from pathlib import Path
+          from urllib.parse import urlsplit
+
+          path = Path("index.html")
+          source = path.read_text(encoding="utf-8")
+          placeholder = "<!-- __OPTIONAL_TOOL_BANNER__ -->"
+          if source.count(placeholder) != 1:
+              raise SystemExit("Expected exactly one optional tool banner placeholder")
+
+          url = os.environ.get("GREAT_TOOL_BANNER_URL", "").strip()
+          banner = ""
+          if url:
+              parsed = urlsplit(url)
+              if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+                  raise SystemExit("GREAT_TOOL_BANNER_URL must be an absolute HTTP(S) URL")
+
+              safe_url = html.escape(url, quote=True)
+              banner = f'''<div class="tool-cta" aria-label="Professional call to action">
+            <div class="tool-cta-copy">
+              <p class="tool-cta-kicker">A good tool improves the way you (or LLMs) work.</p>
+              <p class="tool-cta-headline"><span>A great tool improves the way you (or LLMs) think!</span></p>
+            </div>
+            <div class="tool-cta-action">
+              <div class="tool-cta-question">What does a great tool look like?</div>
+              <a class="tool-cta-link" href="{safe_url}" target="_blank" rel="noopener"><span class="tool-cta-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.35" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.1-3.1a6 6 0 0 1-7.9 7.9l-6.9 6.9a2.1 2.1 0 0 1-3-3l6.9-6.9a6 6 0 0 1 7.9-7.9l-3.1 3.1Z"></path></svg></span><span>Anatomy of a great tool</span></a>
+            </div>
+          </div>'''
+
+          path.write_text(source.replace(placeholder, banner), encoding="utf-8")
+          PY
+
+          if grep -q '__OPTIONAL_TOOL_BANNER__' index.html; then
+            echo 'Optional tool banner placeholder was not removed.' >&2
+            exit 1
+          fi
+
+          if [[ -z "${GREAT_TOOL_BANNER_URL}" ]] && grep -q '<div class="tool-cta"' index.html; then
+            echo 'Tool banner markup exists even though GREAT_TOOL_BANNER_URL is unset.' >&2
+            exit 1
+          fi
+
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
 
