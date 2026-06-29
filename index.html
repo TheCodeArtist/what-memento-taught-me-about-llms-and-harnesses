@@ -128,15 +128,24 @@
     }
 
     .settings-btn {
-      min-height: 36px;
-      padding: 0 12px;
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      color: var(--ink);
-      background: #fff;
-      font-size: 13px;
-      font-weight: 720;
+      min-height: 32px;
+      padding: 0 6px;
+      border-radius: 6px;
+      color: var(--muted);
+      background: transparent;
+      font-size: 12px;
+      font-weight: 600;
       white-space: nowrap;
+    }
+
+    .settings-btn:hover {
+      color: var(--ink);
+      background: var(--panel-2);
+    }
+
+    .settings-btn:focus-visible {
+      outline: 2px solid var(--blue);
+      outline-offset: 2px;
     }
 
     .api-dialog {
@@ -675,7 +684,89 @@
       display: block;
       width: 100%;
       min-width: 0;
-      white-space: pre-wrap;
+      white-space: normal;
+    }
+
+    .bubble-body > :first-child {
+      margin-top: 0;
+    }
+
+    .bubble-body > :last-child {
+      margin-bottom: 0;
+    }
+
+    .bubble-body p,
+    .bubble-body ul,
+    .bubble-body ol,
+    .bubble-body blockquote,
+    .bubble-body pre {
+      margin: 0 0 0.7em;
+    }
+
+    .bubble-body ul,
+    .bubble-body ol {
+      padding-left: 1.4em;
+    }
+
+    .bubble-body li + li {
+      margin-top: 0.25em;
+    }
+
+    .bubble-body h1,
+    .bubble-body h2,
+    .bubble-body h3,
+    .bubble-body h4,
+    .bubble-body h5,
+    .bubble-body h6 {
+      margin: 0.7em 0 0.35em;
+      font-size: 1em;
+      line-height: 1.25;
+    }
+
+    .bubble-body blockquote {
+      padding-left: 0.75em;
+      border-left: 3px solid currentColor;
+      opacity: 0.78;
+    }
+
+    .bubble-body code {
+      padding: 0.12em 0.3em;
+      border: 1px solid rgba(23, 32, 42, 0.12);
+      border-radius: 4px;
+      background: rgba(255, 255, 255, 0.58);
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+      font-size: 0.88em;
+    }
+
+    .bubble-body pre {
+      max-width: 100%;
+      padding: 0.7em 0.8em;
+      overflow-x: auto;
+      border: 1px solid rgba(23, 32, 42, 0.14);
+      border-radius: 6px;
+      background: rgba(23, 32, 42, 0.07);
+      white-space: pre;
+    }
+
+    .bubble-body pre code {
+      padding: 0;
+      border: 0;
+      background: transparent;
+      font-size: 0.85em;
+    }
+
+    .bubble-body a {
+      color: inherit;
+      font-weight: 700;
+      text-decoration-thickness: 1px;
+      text-underline-offset: 2px;
+    }
+
+    .bubble-body hr {
+      margin: 0.7em 0;
+      border: 0;
+      border-top: 1px solid currentColor;
+      opacity: 0.2;
     }
 
     .bubble-relation {
@@ -1053,6 +1144,19 @@
       animation: logFlash 1250ms ease-out;
     }
 
+    .log-entry.active-chat-log {
+      border-color: #2c6ec8;
+      box-shadow: 0 0 0 3px rgba(44, 110, 200, 0.16), 0 8px 18px rgba(23, 62, 121, 0.1);
+    }
+
+    .log-entry.active-chat-log > summary {
+      background: #eef5ff;
+    }
+
+    .log-entry.active-chat-log > summary strong {
+      color: #173e79;
+    }
+
     @keyframes logFlash {
       0% {
         border-color: #f5b942;
@@ -1131,6 +1235,7 @@
 
     .log-entry.waiting {
       border-color: #bdc8d4;
+      border-style: dotted;
       background: #f9fbfd;
     }
 
@@ -1145,7 +1250,11 @@
     }
 
     .log-entry.waiting summary strong {
-      color: #405066;
+      color: #64748b;
+    }
+
+    .log-entry.waiting pre {
+      color: #778392;
     }
 
     .log-entry summary strong {
@@ -1163,6 +1272,156 @@
       line-height: 1.48;
       white-space: pre-wrap;
       overflow-wrap: anywhere;
+    }
+
+    /* Slide 4: make the harness edit the visual climax of the demo. */
+    .rewrite-demo .chat-card,
+    .rewrite-demo .log-panel,
+    .rewrite-demo .log-entry {
+      transition: opacity 220ms ease, filter 220ms ease, border-color 220ms ease, box-shadow 220ms ease;
+    }
+
+    .rewrite-demo.rewrite-focus .log-panel {
+      border-color: #d69b25;
+      box-shadow:
+        0 34px 70px rgba(23, 32, 42, 0.2),
+        0 0 0 4px rgba(245, 185, 66, 0.18);
+    }
+
+    .rewrite-demo.rewrite-focus .log-entry:not(.spotlight):not(.active-chat-log) {
+      opacity: 0.42;
+      filter: saturate(0.65);
+    }
+
+    .log-entry.spotlight {
+      position: relative;
+      z-index: 3;
+      border-color: #d34135;
+      background: #fffdf8;
+      box-shadow: 0 0 0 5px rgba(211, 65, 53, 0.17), 0 14px 30px rgba(90, 48, 17, 0.18);
+    }
+
+    .log-entry.spotlight.active-chat-log > summary {
+      background: #fff6ed;
+    }
+
+    .log-entry.spotlight.spotlight-enter {
+      animation: historyEditSpotlight 900ms ease-out both;
+    }
+
+    @keyframes historyEditSpotlight {
+      0% {
+        transform: scale(0.985);
+        box-shadow: 0 0 0 0 rgba(211, 65, 53, 0.46), 0 8px 18px rgba(90, 48, 17, 0.12);
+      }
+      55% {
+        transform: scale(1.012);
+        box-shadow: 0 0 0 8px rgba(211, 65, 53, 0.18), 0 18px 34px rgba(90, 48, 17, 0.2);
+      }
+      100% {
+        transform: scale(1);
+        box-shadow: 0 0 0 5px rgba(211, 65, 53, 0.17), 0 14px 30px rgba(90, 48, 17, 0.18);
+      }
+    }
+
+    .history-diff {
+      display: grid;
+      gap: 8px;
+      padding: 0 12px 14px;
+    }
+
+    .history-diff-row {
+      display: grid;
+      gap: 5px;
+      border: 1px solid;
+      border-radius: 7px;
+      padding: 9px 10px;
+    }
+
+    .history-diff-row.removed {
+      border-color: #e4aaa5;
+      background: #fff0ef;
+      color: #8d2921;
+    }
+
+    .history-diff-row.added {
+      border-color: #8fcaaa;
+      background: #eaf8ef;
+      color: #145c35;
+    }
+
+    .history-diff-label {
+      font-size: 10px;
+      font-weight: 850;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+    }
+
+    .history-diff-row code {
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+      font-size: 12px;
+      line-height: 1.45;
+      overflow-wrap: anywhere;
+    }
+
+    .message-row.visible-original .bubble {
+      border-color: #d7a02e;
+      box-shadow: 0 0 0 3px rgba(245, 185, 66, 0.16);
+    }
+
+    .message-row.visible-original .bubble-relation {
+      color: #8a5a00;
+    }
+
+    .rewrite-takeaway {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr);
+      align-items: center;
+      gap: 10px;
+      max-height: 0;
+      padding: 0 12px;
+      border: 0 solid #86b655;
+      border-left-width: 4px;
+      border-radius: 0 8px 8px 0;
+      background: #eef8e8;
+      opacity: 0;
+      overflow: hidden;
+      transform: translateY(6px);
+      transition: max-height 260ms ease, padding 260ms ease, opacity 220ms ease, transform 260ms ease;
+    }
+
+    .rewrite-demo.rewrite-resolved .rewrite-takeaway {
+      max-height: 100px;
+      padding: 10px 12px;
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .rewrite-takeaway span {
+      color: #477126;
+      font-size: 10px;
+      font-weight: 850;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+    }
+
+    .rewrite-takeaway strong {
+      color: #203615;
+      font-size: clamp(14px, 1.05vw, 17px);
+      line-height: 1.3;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .log-entry.spotlight.spotlight-enter {
+        animation: none;
+      }
+
+      .rewrite-demo .chat-card,
+      .rewrite-demo .log-panel,
+      .rewrite-demo .log-entry,
+      .rewrite-takeaway {
+        transition: none;
+      }
     }
 
     .scenario-controls {
@@ -2049,12 +2308,16 @@
         </div>
       </article>
 
-      <article class="slide" data-title="Rewrite history">
+      <article class="slide rewrite-demo" data-title="Rewrite history">
         <div class="slide-inner">
           <div class="slide-title">
             <div class="eyebrow">Harness control</div>
-            <h2>Rewrite the history and...</h2>
-            <p class="lead">in subsequent API calls,<br>the harness can rewrite the assistant's earlier responses.</p>
+            <h2>Edit the history.<br>Change the model's reality.</h2>
+            <p class="lead">The model follows the messages in the next API call&mdash;not the transcript visible on screen.</p>
+            <div class="rewrite-takeaway" data-rewrite-takeaway role="status" aria-live="polite">
+              <span>Key learning</span>
+              <strong>Change the replayed context &rarr; change the model's answer.</strong>
+            </div>
           </div>
 
           <div class="demo-shell" data-demo="rewrite">
@@ -2254,20 +2517,21 @@
     let currentSlide = 0;
 
     const DEFAULT_API_ENDPOINT = "https://openrouter.ai/api/v1/chat/completions";
-    const DEFAULT_API_MODEL = "nvidia/nemotron-3-nano-30b-a3b:free";
+    const DEFAULT_API_MODEL = "openai/gpt-oss-120b:free";
     const DEFAULT_API_KEY = "__OPENROUTER_API_KEY__";
     const API_KEY_STORAGE_KEY = "how_llms_openrouter_key";
     const API_MODEL_STORAGE_KEY = "how_llms_openrouter_model";
     const LLM_TEMPERATURE = 0;
     const LLM_NETWORK_RETRY_LIMIT = 2;
-    const LLM_NETWORK_RETRY_DELAY_MS = 700;
-    const CHAT_MESSAGE_REVEAL_DELAY_MS = 1000;
+    const LLM_NETWORK_RETRY_DELAY_MS = 1000;
+    const CHAT_MESSAGE_REVEAL_DELAY_MS = 1500;
     const TAJ_USER_MESSAGE = "Visiting the Taj Mahal today, should I carry an umbrella?";
-    const USER_TEMPERATURE_REPLY = "It is 31 C in Agra.";
+    const USER_TEMPERATURE_REPLY = "It is 42 C in Agra.";
     const TOOL_CONTINUE_PROMPT = "Continue with tool result";
-    const userCallInstruction = "For this demo, if the user asks anything that requires current weather data, do not answer the weather question and do not invent weather data. Instead, respond with exactly this sentence and nothing else: \"What is the current weather in <city>?\" Replace <city> with the city mentioned by the user. Do not include explanations, greetings, markdown, tool calls, or any additional text.";
-    const toolCallInstruction = "When weather is needed, call get_current_weather for the missing fact, using the best city you can infer. Do not ask the user for weather. After the tool result arrives, answer the user.";
+    const userCallInstruction = "For this demo, if the user asks anything that requires current weather data, do not answer the weather question and do not invent weather data. Instead, respond with exactly this sentence and nothing else: \"What is the current weather in <city>?\" Replace <city> with the city mentioned by the user. Do NOT include explanations, greetings, markdown, tool calls, or any additional text.";
+    const toolCallInstruction = "When weather is needed, call get_current_weather for the missing fact, using the best city you can infer. Do NOT ask the user for weather. After the tool result arrives, answer the user.";
     const READONLY_INPUT_NOTICE = "Click send to trigger the conversation with the LLM and view the resulting API call and response.";
+    const REWRITE_OBSERVATION_DURATION_MS = 4200;
     const demoStates = new Map();
     const inputNoticeTimers = new WeakMap();
 
@@ -2321,6 +2585,21 @@
       callToolRequest2: "call-tool-api-request-2",
       callToolReply2: "call-tool-reply-2"
     };
+
+    function visibleRewriteAssistant(text) {
+      return ["assistant", text, {
+        logTarget: LOG_IDS.rewriteReply1,
+        logRelation: "VISIBLE IN UI · original response",
+        emphasis: "visible-original"
+      }];
+    }
+
+    function editedHistoryAnswer(text) {
+      return ["assistant", text, {
+        logTarget: LOG_IDS.rewriteReply2,
+        logRelation: "ANSWER FOLLOWS EDITED HISTORY"
+      }];
+    }
 
     const demos = {
       oneRequest: {
@@ -2435,7 +2714,7 @@
     }
 
     function preparedRequestLog(kind, title, payload, open = true, id = "") {
-      return logEntry(kind, "Waiting...", title, payload, open, "waiting", id);
+      return logEntry(kind, "Request prepared", title, payload, open, "waiting", id);
     }
 
     function normalizeChatCompletionsEndpoint(value) {
@@ -2538,7 +2817,7 @@
       const body = {
         model: apiConfig.model,
         temperature: LLM_TEMPERATURE,
-        max_tokens: 320,
+        max_tokens: 2000,
         ...request
       };
       const started = performance.now();
@@ -2889,10 +3168,12 @@
       if (state?.awaitingFollowup) {
         const pending = state.awaitingFollowup;
         update?.({
+          rewriteStage: "edited",
+          spotlightLogId: LOG_IDS.rewriteMutation,
           transcript: [
             ["user", "Pick a project codename for this demo."],
             noteWithLog("API request 1 sent with the codename prompt.", LOG_IDS.rewriteRequest1),
-            ["assistant", pending.visibleAssistant],
+            visibleRewriteAssistant(pending.visibleAssistant),
             noteWithLog("API request 1 returned. The deck waited for the next send click.", LOG_IDS.rewriteReply1, "API request 1"),
             noteWithLog("Before API request 2, the harness rewrote the assistant turn.", LOG_IDS.rewriteMutation),
             ["user", "What codename did you pick?"],
@@ -2908,15 +3189,18 @@
           const second = await callChatCompletion(pending.secondRequest, "Rewritten-history call");
           state.awaitingFollowup = null;
           return {
+            rewriteStage: "resolved",
+            showRewriteObservation: true,
+            spotlightLogId: LOG_IDS.rewriteMutation,
             transcript: [
               ["user", "Pick a project codename for this demo."],
               noteWithLog("API request 1 sent with the codename prompt.", LOG_IDS.rewriteRequest1),
-              ["assistant", pending.visibleAssistant],
+              visibleRewriteAssistant(pending.visibleAssistant),
               noteWithLog("API request 1 returned. The deck waited for the next send click.", LOG_IDS.rewriteReply1, "API request 1"),
               noteWithLog("Before API request 2, the harness rewrote the assistant turn.", LOG_IDS.rewriteMutation),
               ["user", "What codename did you pick?"],
               noteWithLog("API request 2 sent with the edited assistant turn.", LOG_IDS.rewriteRequest2),
-              ["assistant", assistantText(second.message) || "(empty assistant message)"],
+              editedHistoryAnswer(assistantText(second.message) || "(empty assistant message)"),
               noteWithLog("The answer follows the edited API history, not a private memory of the visible chat.", LOG_IDS.rewriteRequest2, "API request 2")
             ],
             logs: [
@@ -2930,10 +3214,12 @@
         } catch (error) {
           state.awaitingFollowup = null;
           return {
+            rewriteStage: "edited",
+            spotlightLogId: LOG_IDS.rewriteMutation,
             transcript: [
               ["user", "Pick a project codename for this demo."],
               noteWithLog("API request 1 sent with the codename prompt.", LOG_IDS.rewriteRequest1),
-              ["assistant", pending.visibleAssistant],
+              visibleRewriteAssistant(pending.visibleAssistant),
               noteWithLog("Before API request 2, the harness rewrote the assistant turn.", LOG_IDS.rewriteMutation),
               ["user", "What codename did you pick?"],
               noteWithLog("API request 2 sent with the edited assistant turn.", LOG_IDS.rewriteRequest2),
@@ -2959,11 +3245,13 @@
       if (state) state.awaitingFollowup = { visibleAssistant, editedAssistant, secondRequest, firstLogs };
       return {
         awaitingSend: true,
+        rewriteStage: "edited",
+        spotlightLogId: LOG_IDS.rewriteMutation,
         nextInput: "What codename did you pick?",
         transcript: [
           ["user", "Pick a project codename for this demo."],
           noteWithLog("API request 1 sent with the codename prompt.", LOG_IDS.rewriteRequest1),
-          ["assistant", visibleAssistant],
+          visibleRewriteAssistant(visibleAssistant),
           noteWithLog("API request 2 is prepared. Click send to trigger the rewritten-history follow-up.", LOG_IDS.rewriteRequest2)
         ],
         logs: [
@@ -3075,35 +3363,29 @@
       const city = String(args.city || "Agra");
       return {
         city,
-        condition: "showers likely",
-        temperature_c: 31,
-        precipitation_probability: 0.78,
+        condition: "Sunny",
+        temperature_c: 42,
+        precipitation_probability: 0.1,
         source: "demo weather tool"
       };
     }
 
     function toolCallBubbleText(toolName, args) {
-      const city = String(args.city || "Agra");
-      const date = args.date ? `,\n  "date": "${String(args.date)}"` : "";
-      return [
-        "assistant.tool_call",
-        "{",
-        `  "name": "${toolName}",`,
-        `  "arguments": { "city": "${city}"${date} }`,
-        "}"
-      ].join("\n");
+      const argumentsPayload = { city: String(args.city || "Agra") };
+      if (args.date) argumentsPayload.date = String(args.date);
+      return `assistant.tool_call\n\`\`\`json\n${JSON.stringify({
+        name: toolName,
+        arguments: argumentsPayload
+      }, null, 2)}\n\`\`\``;
     }
 
     function toolResponseBubbleText(toolName, result) {
-      return [
-        "tool.response",
-        "{",
-        `  "city": "${String(result.city || "Agra")}",`,
-        `  "condition": "${String(result.condition || "unknown")}",`,
-        `  "temperature_c": ${Number(result.temperature_c ?? 31)},`,
-        `  "precipitation_probability": ${Number(result.precipitation_probability ?? 0)}`,
-        "}"
-      ].join("\n");
+      return `tool.response\n\`\`\`json\n${JSON.stringify({
+        city: String(result.city || "Agra"),
+        condition: String(result.condition || "unknown"),
+        temperature_c: Number(result.temperature_c ?? 31),
+        precipitation_probability: Number(result.precipitation_probability ?? 0)
+      }, null, 2)}\n\`\`\``;
     }
 
     function toolCallOrWarning(first) {
@@ -3284,8 +3566,139 @@
       return "U";
     }
 
+    function safeMarkdownUrl(url) {
+      const value = String(url || "").trim();
+      return /^(https?:|mailto:)/i.test(value) ? value : "";
+    }
+
+    function prettyJson(value) {
+      const source = String(value ?? "").trim();
+      if (!source || (!source.startsWith("{") && !source.startsWith("["))) return null;
+      try {
+        return JSON.stringify(JSON.parse(source), null, 2);
+      } catch {
+        return null;
+      }
+    }
+
+    function renderInlineMarkdown(value) {
+      const tokens = [];
+      const token = (html) => {
+        const index = tokens.push(html) - 1;
+        return `\u0000${index}\u0000`;
+      };
+      let source = String(value ?? "");
+
+      source = source.replace(/(`+)([\s\S]*?)\1/g, (_match, _ticks, code) => {
+        return token(`<code>${escapeHtml(code.trim())}</code>`);
+      });
+      source = source.replace(/\[([^\]\n]+)\]\(([^\s)]+)(?:\s+["']([^"']*)["'])?\)/g, (_match, label, url, title) => {
+        const href = safeMarkdownUrl(url);
+        if (!href) return `${label} (${url})`;
+        const titleAttribute = title ? ` title="${escapeHtml(title)}"` : "";
+        return token(`<a href="${escapeHtml(href)}"${titleAttribute} target="_blank" rel="noopener noreferrer">${escapeHtml(label)}</a>`);
+      });
+
+      source = escapeHtml(source)
+        .replace(/\*\*([^*\n]+)\*\*/g, "<strong>$1</strong>")
+        .replace(/__([^_\n]+)__/g, "<strong>$1</strong>")
+        .replace(/(^|[^*])\*([^*\n]+)\*(?!\*)/g, "$1<em>$2</em>")
+        .replace(/(^|[^_])_([^_\n]+)_(?!_)/g, "$1<em>$2</em>")
+        .replace(/~~([^~\n]+)~~/g, "<del>$1</del>");
+
+      return source.replace(/\u0000(\d+)\u0000/g, (_match, index) => tokens[Number(index)] || "");
+    }
+
+    function renderMarkdown(text) {
+      const source = String(text ?? "").replace(/\r\n?/g, "\n");
+      const formattedJson = prettyJson(source);
+      if (formattedJson !== null) {
+        return `<pre><code class="language-json">${escapeHtml(formattedJson)}</code></pre>`;
+      }
+      const lines = source.split("\n");
+      const output = [];
+      let index = 0;
+
+      while (index < lines.length) {
+        const line = lines[index];
+        if (!line.trim()) {
+          index += 1;
+          continue;
+        }
+
+        const fence = line.match(/^\s{0,3}(```+|~~~+)\s*([\w+-]*)\s*$/);
+        if (fence) {
+          const marker = fence[1];
+          const language = fence[2];
+          const code = [];
+          index += 1;
+          while (index < lines.length && !new RegExp(`^\\s{0,3}${marker[0]}{${marker.length},}\\s*$`).test(lines[index])) {
+            code.push(lines[index]);
+            index += 1;
+          }
+          if (index < lines.length) index += 1;
+          const languageClass = language ? ` class="language-${escapeHtml(language)}"` : "";
+          const rawCode = code.join("\n");
+          const formattedCode = language.toLowerCase() === "json" ? prettyJson(rawCode) : null;
+          output.push(`<pre><code${languageClass}>${escapeHtml(formattedCode ?? rawCode)}</code></pre>`);
+          continue;
+        }
+
+        const heading = line.match(/^\s{0,3}(#{1,6})\s+(.+?)\s*#*\s*$/);
+        if (heading) {
+          const level = heading[1].length;
+          output.push(`<h${level}>${renderInlineMarkdown(heading[2])}</h${level}>`);
+          index += 1;
+          continue;
+        }
+
+        if (/^\s{0,3}((\*\s*){3,}|(-\s*){3,}|(_\s*){3,})$/.test(line)) {
+          output.push("<hr>");
+          index += 1;
+          continue;
+        }
+
+        if (/^\s{0,3}>/.test(line)) {
+          const quoted = [];
+          while (index < lines.length && /^\s{0,3}>/.test(lines[index])) {
+            quoted.push(lines[index].replace(/^\s{0,3}>\s?/, ""));
+            index += 1;
+          }
+          output.push(`<blockquote>${renderMarkdown(quoted.join("\n"))}</blockquote>`);
+          continue;
+        }
+
+        const listStart = line.match(/^\s{0,3}([-+*]|\d+[.)])\s+(.+)$/);
+        if (listStart) {
+          const ordered = /^\d/.test(listStart[1]);
+          const tag = ordered ? "ol" : "ul";
+          const items = [];
+          while (index < lines.length) {
+            const item = lines[index].match(/^\s{0,3}([-+*]|\d+[.)])\s+(.+)$/);
+            if (!item || /^\d/.test(item[1]) !== ordered) break;
+            items.push(`<li>${renderInlineMarkdown(item[2])}</li>`);
+            index += 1;
+          }
+          output.push(`<${tag}>${items.join("")}</${tag}>`);
+          continue;
+        }
+
+        const paragraph = [];
+        while (index < lines.length && lines[index].trim()) {
+          const next = lines[index];
+          if (paragraph.length && (/^\s{0,3}(```+|~~~+)/.test(next) || /^\s{0,3}(#{1,6})\s+/.test(next) || /^\s{0,3}>/.test(next) || /^\s{0,3}([-+*]|\d+[.)])\s+/.test(next))) break;
+          paragraph.push(next);
+          index += 1;
+        }
+        const rendered = paragraph.map((part) => renderInlineMarkdown(part.replace(/\s+$/, "")));
+        output.push(`<p>${rendered.join(" ")}</p>`);
+      }
+
+      return output.join("");
+    }
+
     function renderBubbleBody(role, text) {
-      return escapeHtml(String(text ?? ""));
+      return renderMarkdown(text);
     }
 
     function visibleChatTranscript(transcript) {
@@ -3298,7 +3711,8 @@
         String(text ?? ""),
         meta?.logTarget || "",
         meta?.linkText || "",
-        meta?.logRelation || ""
+        meta?.logRelation || "",
+        meta?.emphasis || ""
       ]);
     }
 
@@ -3317,6 +3731,11 @@
     function clearChatRevealTimer(state) {
       if (state?.chatReveal?.timer) window.clearTimeout(state.chatReveal.timer);
       if (state) state.chatReveal = null;
+    }
+
+    function clearRewriteObservationTimer(state) {
+      if (state?.rewriteObservationTimer) window.clearTimeout(state.rewriteObservationTimer);
+      if (state) state.rewriteObservationTimer = null;
     }
 
     function stagedChatTranscript(root, state, targetTranscript, animate) {
@@ -3437,6 +3856,7 @@
     function createMessageRow(role, text, meta) {
       const row = document.createElement("div");
       row.className = `message-row ${role}`;
+      if (meta?.emphasis) row.classList.add(meta.emphasis);
       row.dataset.messageKey = chatMessageKey([role, text, meta]);
       if (meta?.logTarget) {
         row.dataset.logTarget = meta.logTarget;
@@ -3640,6 +4060,69 @@
       return event.key.length === 1 || ["Backspace", "Delete", "Enter"].includes(event.key);
     }
 
+    function renderLogPayload(log) {
+      if (log.id !== LOG_IDS.rewriteMutation) {
+        return `<pre>${escapeHtml(payloadText(log.payload))}</pre>`;
+      }
+
+      const lines = String(log.payload ?? "").split("\n");
+      const visibleLine = lines.find((line) => line.startsWith("- "))?.slice(2) || lines[0] || "";
+      const editedLine = lines.find((line) => line.startsWith("+ "))?.slice(2) || lines[1] || "";
+      return `
+        <div class="history-diff" aria-label="The visible assistant response is replaced before the next model request">
+          <div class="history-diff-row removed">
+            <span class="history-diff-label">Visible in UI · original response</span>
+            <code>- ${escapeHtml(visibleLine)}</code>
+          </div>
+          <div class="history-diff-row added">
+            <span class="history-diff-label">What the model sees next</span>
+            <code>+ ${escapeHtml(editedLine)}</code>
+          </div>
+        </div>
+      `;
+    }
+
+    function syncLogToActiveChatMessage(logsEl, transcript, state) {
+      const activeMessage = transcript.at(-1);
+      const activeTarget = activeMessage?.[2]?.logTarget || "";
+      const entries = Array.from(logsEl.querySelectorAll("[data-log-id]"));
+      entries.forEach((entry) => {
+        entry.classList.remove("active-chat-log");
+        entry.removeAttribute("aria-current");
+      });
+
+      if (!activeMessage || !activeTarget) {
+        state.activeChatLogKey = "";
+        return;
+      }
+
+      const activeEntry = entries.find((entry) => entry.dataset.logId === activeTarget);
+      if (!activeEntry) {
+        state.activeChatLogKey = "";
+        return;
+      }
+
+      activeEntry.classList.add("active-chat-log");
+      activeEntry.setAttribute("aria-current", "true");
+      activeEntry.open = true;
+
+      const activeKey = chatMessageKey(activeMessage);
+      if (state.activeChatLogKey === activeKey) return;
+      state.activeChatLogKey = activeKey;
+
+      window.requestAnimationFrame(() => {
+        const availableHeight = Math.max(0, logsEl.clientHeight - 24);
+        const targetTop = activeEntry.offsetHeight > availableHeight
+          ? activeEntry.offsetTop - 12
+          : activeEntry.offsetTop - (logsEl.clientHeight - activeEntry.offsetHeight) / 2;
+        logsEl.scrollTo({
+          top: Math.max(0, targetTop),
+          behavior: shouldReduceMotion() ? "auto" : "smooth"
+        });
+        updateLogScrollAffordance(logsEl);
+      });
+    }
+
     function renderDemo(root) {
       const key = root.dataset.demo;
       const demo = demos[key];
@@ -3657,11 +4140,38 @@
       const sendButton = root.querySelector(".send-btn");
       const noticeEl = ensureInputNotice(root);
       const activeResult = state.result?.step === stepIndex ? state.result : null;
+      const rewriteStage = activeResult?.rewriteStage || "";
+      const spotlightLogId = activeResult?.spotlightLogId || "";
+      const showRewriteObservation = Boolean(activeResult?.showRewriteObservation);
+      const spotlightIsNew = Boolean(spotlightLogId && state.spotlightLogId !== spotlightLogId);
+      const slide = root.closest(".slide");
+      slide?.classList.toggle("rewrite-focus", Boolean(spotlightLogId));
+      slide?.classList.toggle("rewrite-resolved", rewriteStage === "resolved" && showRewriteObservation);
+      const rewriteTakeaway = slide?.querySelector("[data-rewrite-takeaway]");
+      rewriteTakeaway?.setAttribute("aria-hidden", rewriteStage === "resolved" && showRewriteObservation ? "false" : "true");
       const transcript = state.loading
         ? activeResult?.transcript || [...step.preview, ["note", "Waiting for the live LLM response..."]]
         : activeResult?.transcript || (state.submitted ? step.preview : []);
       const targetTranscript = visibleChatTranscript(transcript);
       const visibleTranscript = stagedChatTranscript(root, state, targetTranscript, state.loading || state.submitted || Boolean(activeResult));
+      if (
+        key === "rewrite" &&
+        showRewriteObservation &&
+        visibleTranscript.length === targetTranscript.length &&
+        !state.rewriteObservationTimer
+      ) {
+        const observedResult = state.result;
+        state.rewriteObservationTimer = window.setTimeout(() => {
+          state.rewriteObservationTimer = null;
+          if (state.result !== observedResult) return;
+          state.result = {
+            ...state.result,
+            showRewriteObservation: false,
+            spotlightLogId: ""
+          };
+          renderDemo(root);
+        }, REWRITE_OBSERVATION_DURATION_MS);
+      }
       const logs = state.loading
         ? activeResult?.logs || [...step.previewLogs, logEntry("api", "Live", "Request in progress", "The browser harness is waiting for the LLM API chat-completions response.", true)]
         : activeResult?.logs || step.previewLogs;
@@ -3706,18 +4216,35 @@
 
       wireLogScrollAffordance(logsEl);
       logsEl.innerHTML = logs.map((log) => {
-        const classes = ["log-entry", log.kind || "api", log.status].filter(Boolean).map(escapeHtml).join(" ");
+        const isSpotlight = log.id === spotlightLogId;
+        const classes = ["log-entry", log.kind || "api", log.status, isSpotlight ? "spotlight" : "", isSpotlight && spotlightIsNew ? "spotlight-enter" : ""].filter(Boolean).map(escapeHtml).join(" ");
         const logId = log.id ? ` data-log-id="${escapeHtml(log.id)}"` : "";
         return `
           <details class="${classes}"${logId} ${log.open ? "open" : ""}>
             <summary><span class="log-badge">${escapeHtml(log.badge || "Log")}</span><strong>${escapeHtml(log.title)}</strong></summary>
-            <pre>${escapeHtml(payloadText(log.payload))}</pre>
+            ${renderLogPayload(log)}
           </details>
         `;
       }).join("");
       logsEl.querySelectorAll("details").forEach((entry) => {
         entry.addEventListener("toggle", () => window.requestAnimationFrame(() => updateLogScrollAffordance(logsEl)));
       });
+      if (spotlightLogId && state.spotlightLogId !== spotlightLogId) {
+        state.spotlightLogId = spotlightLogId;
+        const spotlightEntry = logsEl.querySelector(`[data-log-id="${spotlightLogId}"]`);
+        window.requestAnimationFrame(() => {
+          if (!spotlightEntry) return;
+          const targetTop = spotlightEntry.offsetTop - (logsEl.clientHeight - spotlightEntry.offsetHeight) / 2;
+          logsEl.scrollTo({
+            top: Math.max(0, targetTop),
+            behavior: shouldReduceMotion() ? "auto" : "smooth"
+          });
+          updateLogScrollAffordance(logsEl);
+        });
+      } else if (!spotlightLogId) {
+        state.spotlightLogId = "";
+      }
+      syncLogToActiveChatMessage(logsEl, linkedTranscript, state);
       window.requestAnimationFrame(() => updateLogScrollAffordance(logsEl));
     }
 
@@ -3745,7 +4272,9 @@
       state.submitted = false;
       state.awaitingFollowup = null;
       state.chatFocusKey = "";
+      state.activeChatLogKey = "";
       clearChatRevealTimer(state);
+      clearRewriteObservationTimer(state);
       root.dataset.step = String(index);
       renderDemo(root);
       renderDemoControls(key);
@@ -3764,7 +4293,9 @@
       if (!continuingConversation) {
         state.result = null;
         state.chatFocusKey = "";
+        state.activeChatLogKey = "";
         clearChatRevealTimer(state);
+        clearRewriteObservationTimer(state);
       }
       renderDemo(root);
       try {
@@ -3887,6 +4418,7 @@
     });
 
     document.addEventListener("click", (event) => {
+      if (event.target.closest(".bubble-body a")) return;
       const messageRow = event.target.closest(".message-row[data-log-target]");
       if (messageRow) {
         focusLinkedLogCard(messageRow);
@@ -3906,6 +4438,7 @@
     });
 
     document.addEventListener("keydown", (event) => {
+      if (event.target.closest(".bubble-body a")) return;
       if (event.key !== "Enter" && event.key !== " ") return;
       const messageRow = event.target.closest(".message-row[data-log-target]");
       if (!messageRow) return;
