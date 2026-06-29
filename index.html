@@ -1036,6 +1036,61 @@
       opacity: 0.46;
     }
 
+    [data-demo="oneRequest"] .interaction-hint {
+      grid-column: 1 / -1;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      color: #31510d;
+      font-size: 12px;
+      font-weight: 780;
+      letter-spacing: 0.01em;
+    }
+
+    [data-demo="oneRequest"] .interaction-hint::before {
+      content: "";
+      width: 8px;
+      height: 8px;
+      flex: 0 0 8px;
+      border-radius: 50%;
+      background: var(--nvidia-green);
+      box-shadow: 0 0 0 4px rgba(118, 185, 0, 0.16);
+    }
+
+    [data-demo="oneRequest"] .interaction-hint[hidden] {
+      display: none;
+    }
+
+    [data-demo="oneRequest"] .send-btn {
+      width: auto;
+      min-width: 146px;
+      padding: 0 15px;
+    }
+
+    .slide.active [data-demo="oneRequest"] .send-btn:not(:disabled) {
+      animation: slideOneCtaInvite 1600ms ease-in-out 500ms 2;
+    }
+
+    @keyframes slideOneCtaInvite {
+      0%, 100% {
+        transform: translateY(0);
+        box-shadow: 0 0 0 0 rgba(118, 185, 0, 0);
+      }
+      50% {
+        transform: translateY(-2px);
+        box-shadow:
+          0 0 0 5px rgba(118, 185, 0, 0.24),
+          0 7px 16px rgba(49, 81, 13, 0.18);
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .slide.active [data-demo="oneRequest"] .send-btn:not(:disabled) {
+        animation: none;
+        box-shadow: 0 0 0 4px rgba(118, 185, 0, 0.2);
+      }
+    }
+
     .send-btn[data-tooltip]:disabled:hover::after {
       content: attr(data-tooltip);
       position: absolute;
@@ -2210,6 +2265,7 @@
               </div>
               <div class="chat-thread" data-chat></div>
               <div class="composer">
+                <div class="interaction-hint" data-interaction-hint>Interactive demo — send the prepared message</div>
                 <div class="fake-input" data-input></div>
                 <button class="send-btn" type="button" aria-label="Send message">-></button>
               </div>
@@ -4138,6 +4194,7 @@
       const captionEl = root.querySelector("[data-caption]");
       const inputEl = root.querySelector("[data-input]");
       const sendButton = root.querySelector(".send-btn");
+      const interactionHint = root.querySelector("[data-interaction-hint]");
       const noticeEl = ensureInputNotice(root);
       const activeResult = state.result?.step === stepIndex ? state.result : null;
       const rewriteStage = activeResult?.rewriteStage || "";
@@ -4184,6 +4241,7 @@
       inputEl.setAttribute("spellcheck", "false");
       inputEl.setAttribute("contenteditable", state.submitted ? "false" : "plaintext-only");
       inputEl.tabIndex = state.submitted ? -1 : 0;
+      if (interactionHint) interactionHint.hidden = state.loading || state.submitted;
       if (state.loading || state.submitted) hideInputNotice(noticeEl);
       captionEl.innerHTML = `<strong>${escapeHtml(step.title)}</strong><span>${escapeHtml(step.note)}</span>`;
       if (sendButton) {
@@ -4196,7 +4254,12 @@
         sendButton.title = sendTooltip;
         sendButton.dataset.tooltip = sendTooltip;
         sendButton.setAttribute("aria-label", sendTooltip);
-        sendButton.innerHTML = sendIconSvg();
+        if (key === "oneRequest") {
+          const sendLabel = state.loading ? "Sending..." : state.submitted ? "Sent" : "Send message";
+          sendButton.innerHTML = `<span>${sendLabel}</span>${sendIconSvg()}`;
+        } else {
+          sendButton.innerHTML = sendIconSvg();
+        }
       }
       const linkedTranscript = linkChatTranscriptToLogs(visibleTranscript, logs);
       const chatRender = renderChatMessages(chatEl, linkedTranscript);
