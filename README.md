@@ -29,7 +29,7 @@ Open `http://localhost:8080`. Opening `index.html` directly also works in modern
 2. Optionally open **API settings** to override the key or model for the current tab.
 3. Press the send button in any chat demo.
 
-The default model is `google/gemma-4-26b-a4b-it:free`.
+The default model is `nvidia/nemotron-3-ultra-550b-a55b:free`.
 A local copy still requires a key from the [OpenRouter dashboard](https://openrouter.ai/settings/keys).
 
 The browser sends `POST https://openrouter.ai/api/v1/chat/completions` with the standard bearer-token header plus OpenRouter's optional app-attribution headers. The chosen model must support tool calling for the structured tool-call demo.
