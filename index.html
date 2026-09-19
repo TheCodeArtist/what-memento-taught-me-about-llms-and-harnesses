@@ -3088,7 +3088,9 @@
           msg("user", TAJ_USER_MESSAGE)
         ],
         tools: [weatherTool],
-        tool_choice: { type: "function", function: { name: "get_current_weather" } }
+        // Use the common OpenAI-compatible subset. Because this request exposes
+        // only one tool, "required" is equivalent to forcing that named tool.
+        tool_choice: "required"
       };
     }
 

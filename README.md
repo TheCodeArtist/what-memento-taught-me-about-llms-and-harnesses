@@ -36,6 +36,8 @@ By default, the browser sends `POST https://openrouter.ai/api/v1/chat/completion
 
 Custom endpoints are called directly from the browser and must permit the page's origin through CORS. Tokens are optional for servers that do not require authentication. The embedded deployment key is used only for the default OpenRouter endpoint and is never sent to a custom host. The chosen model must support tool calling for the structured tool-call demo.
 
+The structured tool-call request uses the portable string form `"tool_choice": "required"`. Since that request exposes only `get_current_weather`, this has the same effect as selecting the tool by name while remaining compatible with both OpenRouter and LM Studio's OpenAI-compatible Chat Completions endpoint.
+
 ## Deploy to GitHub Pages
 
 The workflow at [`.github/workflows/pages.yml`](.github/workflows/pages.yml) validates the static app and deploys it on pushes to `main` or `master`.
