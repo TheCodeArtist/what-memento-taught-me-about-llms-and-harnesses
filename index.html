@@ -149,7 +149,7 @@
     }
 
     .api-dialog {
-      width: min(520px, calc(100vw - 28px));
+      width: min(760px, calc(100vw - 28px));
       padding: 0;
       border: 1px solid var(--line);
       border-radius: 8px;
@@ -194,6 +194,12 @@
       gap: 14px;
     }
 
+    .api-field-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
     .api-field {
       display: grid;
       gap: 6px;
@@ -216,6 +222,12 @@
     .api-field input:focus {
       outline: 3px solid rgba(36, 107, 254, 0.2);
       border-color: var(--blue);
+    }
+
+    @media (max-width: 620px) {
+      .api-field-row {
+        grid-template-columns: 1fr;
+      }
     }
 
     .api-dialog-actions {
@@ -2240,7 +2252,7 @@
         <div class="progress" id="progress"></div>
       </div>
       <div class="topbar-actions">
-        <button class="settings-btn" id="apiSettingsButton" type="button" aria-haspopup="dialog" aria-controls="apiSettingsDialog" title="Configure OpenRouter">API <span>settings</span></button>
+        <button class="settings-btn" id="apiSettingsButton" type="button" aria-haspopup="dialog" aria-controls="apiSettingsDialog" title="Configure the LLM API">API <span>settings</span></button>
         <div class="slide-count" id="slideCount">1 / 7</div>
       </div>
     </header>
@@ -2533,22 +2545,28 @@
     <form class="api-dialog-form" id="apiSettingsForm">
       <div class="api-dialog-head">
         <div>
-          <h2 id="apiSettingsTitle">OpenRouter settings</h2>
-          <p class="api-dialog-copy">Live demos call OpenRouter directly from this browser. These settings override the deployed defaults.</p>
+          <h2 id="apiSettingsTitle">API settings</h2>
+          <p class="api-dialog-copy">Use any OpenAI-compatible chat-completions API. Defaults to OpenRouter; override any field.</p>
         </div>
         <button class="dialog-btn dialog-close" id="apiSettingsClose" type="button" aria-label="Close settings">&times;</button>
       </div>
       <div class="api-dialog-fields">
         <label class="api-field">
-          API key
-          <input id="apiKeyInput" type="password" autocomplete="off" spellcheck="false" placeholder="sk-or-v1-...">
+          Endpoint URL
+          <input id="apiEndpointInput" type="url" autocomplete="off" spellcheck="false" placeholder="https://api.openai.com/v1/chat/completions" required>
         </label>
-        <label class="api-field">
-          Model
-          <input id="apiModelInput" type="text" autocomplete="off" spellcheck="false" value="nvidia/nemotron-3-ultra-550b-a55b:free" required>
-        </label>
+        <div class="api-field-row">
+          <label class="api-field">
+            Model
+            <input id="apiModelInput" type="text" autocomplete="off" spellcheck="false" value="nvidia/nemotron-3-ultra-550b-a55b:free" required>
+          </label>
+          <label class="api-field">
+            API token (optional)
+            <input id="apiKeyInput" type="password" autocomplete="off" spellcheck="false" placeholder="provider token">
+          </label>
+        </div>
       </div>
-      <p class="api-dialog-note">A key entered here stays in session storage for this tab and overrides the key embedded during deployment.</p>
+      <p class="api-dialog-note">Settings stay in session storage for this tab. Requests are sent directly from this browser, so custom endpoints must allow browser access (CORS).</p>
       <div class="api-dialog-actions">
         <button class="dialog-btn" id="apiSettingsClear" type="button">Clear</button>
         <button class="dialog-btn primary" type="submit">Save for this tab</button>
@@ -2569,6 +2587,7 @@
     const apiSettingsClose = document.getElementById("apiSettingsClose");
     const apiSettingsClear = document.getElementById("apiSettingsClear");
     const apiKeyInput = document.getElementById("apiKeyInput");
+    const apiEndpointInput = document.getElementById("apiEndpointInput");
     const apiModelInput = document.getElementById("apiModelInput");
     let currentSlide = 0;
 
@@ -2576,6 +2595,7 @@
     const DEFAULT_API_MODEL = "nvidia/nemotron-3-ultra-550b-a55b:free";
     const DEFAULT_API_KEY = "__OPENROUTER_API_KEY__";
     const API_KEY_STORAGE_KEY = "how_llms_openrouter_key";
+    const API_ENDPOINT_STORAGE_KEY = "how_llms_api_endpoint";
     const API_MODEL_STORAGE_KEY = "how_llms_openrouter_model";
     const LLM_TEMPERATURE = 0;
     const LLM_NETWORK_RETRY_LIMIT = 2;
@@ -2669,8 +2689,8 @@
             ],
             previewLogs: [
               preparedRequestLog("api", "Request 1 preview: user message included", {
-                endpoint: DEFAULT_API_ENDPOINT,
-                model: DEFAULT_API_MODEL,
+                endpoint: configuredApiEndpoint(),
+                model: (sessionStorage.getItem(API_MODEL_STORAGE_KEY) || DEFAULT_API_MODEL).trim(),
                 messages: [
                   msg("system", "You are a helpful assistant. Keep the response to one sentence."),
                   msg("user", "Hello")
@@ -2781,6 +2801,9 @@
       } catch {
         throw new Error("Invalid API endpoint URL");
       }
+      if (!/^https?:$/.test(url.protocol)) {
+        throw new Error("API endpoint must use http:// or https://");
+      }
       const path = url.pathname.replace(/\/+$/, "");
       if (!/\/chat\/completions$/i.test(path)) {
         url.pathname = `${path}/chat/completions`.replace(/\/{2,}/g, "/");
@@ -2790,13 +2813,17 @@
 
     function chatSessionMetaText() {
       const model = (sessionStorage.getItem(API_MODEL_STORAGE_KEY) || DEFAULT_API_MODEL).trim() || "unconfigured model";
-      let endpoint = DEFAULT_API_ENDPOINT.trim() || "unconfigured endpoint";
-      try {
-        endpoint = normalizeChatCompletionsEndpoint(endpoint);
-      } catch {
-        // Keep the configured value visible so a bad endpoint is easy to spot.
-      }
+      const endpoint = configuredApiEndpoint();
       return `Interactive session with ${model} via ${endpoint}`;
+    }
+
+    function configuredApiEndpoint() {
+      const endpoint = (sessionStorage.getItem(API_ENDPOINT_STORAGE_KEY) || DEFAULT_API_ENDPOINT).trim() || "unconfigured endpoint";
+      try {
+        return normalizeChatCompletionsEndpoint(endpoint);
+      } catch {
+        return endpoint;
+      }
     }
 
     function renderChatSessionMeta() {
@@ -2808,11 +2835,13 @@
     }
 
     function getApiConfig() {
-      const endpoint = normalizeChatCompletionsEndpoint(DEFAULT_API_ENDPOINT);
+      const endpoint = normalizeChatCompletionsEndpoint(sessionStorage.getItem(API_ENDPOINT_STORAGE_KEY) || DEFAULT_API_ENDPOINT);
       const model = (sessionStorage.getItem(API_MODEL_STORAGE_KEY) || DEFAULT_API_MODEL).trim();
-      const token = (sessionStorage.getItem(API_KEY_STORAGE_KEY) || deployedApiKey()).trim();
+      const customToken = (sessionStorage.getItem(API_KEY_STORAGE_KEY) || "").trim();
+      const usesDefaultEndpoint = endpoint === normalizeChatCompletionsEndpoint(DEFAULT_API_ENDPOINT);
+      const token = customToken || (usesDefaultEndpoint ? deployedApiKey().trim() : "");
       if (!model) throw new Error("API model missing");
-      if (!token) {
+      if (!token && usesDefaultEndpoint) {
         openApiSettings();
         throw new Error("OpenRouter API key missing. Add one in API settings, then send again.");
       }
@@ -2825,7 +2854,10 @@
 
     function openApiSettings() {
       apiKeyInput.value = sessionStorage.getItem(API_KEY_STORAGE_KEY) || "";
-      apiKeyInput.placeholder = deployedApiKey() ? "Using deployment key" : "sk-or-v1-...";
+      apiKeyInput.setCustomValidity("");
+      apiEndpointInput.setCustomValidity("");
+      apiKeyInput.placeholder = "provider token";
+      apiEndpointInput.value = sessionStorage.getItem(API_ENDPOINT_STORAGE_KEY) || DEFAULT_API_ENDPOINT;
       apiModelInput.value = sessionStorage.getItem(API_MODEL_STORAGE_KEY) || DEFAULT_API_MODEL;
       if (!apiSettingsDialog.open) apiSettingsDialog.showModal();
       window.setTimeout(() => apiKeyInput.focus(), 0);
@@ -2834,13 +2866,30 @@
     function saveApiSettings(event) {
       event.preventDefault();
       const token = apiKeyInput.value.trim();
+      let endpoint;
+      try {
+        endpoint = normalizeChatCompletionsEndpoint(apiEndpointInput.value);
+        apiEndpointInput.setCustomValidity("");
+      } catch (error) {
+        apiEndpointInput.setCustomValidity(error?.message || "Invalid API endpoint URL");
+        apiEndpointInput.reportValidity();
+        return;
+      }
       const model = apiModelInput.value.trim();
-      if (!model || (!token && !deployedApiKey())) return;
+      const usesDefaultEndpoint = endpoint === normalizeChatCompletionsEndpoint(DEFAULT_API_ENDPOINT);
+      if (!model) return;
+      if (!token && usesDefaultEndpoint && !deployedApiKey()) {
+        apiKeyInput.setCustomValidity("An API token is required for the default OpenRouter endpoint");
+        apiKeyInput.reportValidity();
+        return;
+      }
+      apiKeyInput.setCustomValidity("");
       if (token) {
         sessionStorage.setItem(API_KEY_STORAGE_KEY, token);
       } else {
         sessionStorage.removeItem(API_KEY_STORAGE_KEY);
       }
+      sessionStorage.setItem(API_ENDPOINT_STORAGE_KEY, endpoint);
       sessionStorage.setItem(API_MODEL_STORAGE_KEY, model);
       renderChatSessionMeta();
       apiSettingsDialog.close();
@@ -2848,9 +2897,13 @@
 
     function clearApiSettings() {
       sessionStorage.removeItem(API_KEY_STORAGE_KEY);
+      sessionStorage.removeItem(API_ENDPOINT_STORAGE_KEY);
       sessionStorage.removeItem(API_MODEL_STORAGE_KEY);
       apiKeyInput.value = "";
-      apiKeyInput.placeholder = deployedApiKey() ? "Using deployment key" : "sk-or-v1-...";
+      apiKeyInput.setCustomValidity("");
+      apiEndpointInput.setCustomValidity("");
+      apiKeyInput.placeholder = "provider token";
+      apiEndpointInput.value = DEFAULT_API_ENDPOINT;
       apiModelInput.value = DEFAULT_API_MODEL;
       renderChatSessionMeta();
       apiKeyInput.focus();
@@ -2882,14 +2935,15 @@
       while (attempts <= LLM_NETWORK_RETRY_LIMIT) {
         attempts += 1;
         try {
+          const headers = { "Content-Type": "application/json" };
+          if (apiConfig.token) headers.Authorization = `Bearer ${apiConfig.token}`;
+          if (new URL(apiConfig.endpoint).hostname === "openrouter.ai") {
+            headers["HTTP-Referer"] = window.location.href;
+            headers["X-OpenRouter-Title"] = "What Memento Taught Me About LLMs and Harnesses";
+          }
           response = await fetch(apiConfig.endpoint, {
             method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "Authorization": `Bearer ${apiConfig.token}`,
-              "HTTP-Referer": window.location.href,
-              "X-OpenRouter-Title": "What Memento Taught Me About LLMs and Harnesses"
-            },
+            headers,
             body: JSON.stringify(body)
           });
           break;
@@ -3073,7 +3127,7 @@
           ],
           logs: [
             ...pending.firstLogs,
-            logEntry("api", "Live", "API request 2 in progress", publicRequest(DEFAULT_API_ENDPOINT, pending.replayRequest), true, "", LOG_IDS.memoryReplayRequest2)
+            logEntry("api", "Live", "API request 2 in progress", publicRequest(configuredApiEndpoint(), pending.replayRequest), true, "", LOG_IDS.memoryReplayRequest2)
           ]
         });
         try {
@@ -3153,7 +3207,7 @@
           ],
           logs: [
             ...pending.firstLogs,
-            logEntry("api", "Live", "API request 2 in progress", publicRequest(DEFAULT_API_ENDPOINT, pending.droppedRequest), true, "", LOG_IDS.memoryDropRequest2)
+            logEntry("api", "Live", "API request 2 in progress", publicRequest(configuredApiEndpoint(), pending.droppedRequest), true, "", LOG_IDS.memoryDropRequest2)
           ]
         });
         try {
@@ -3238,7 +3292,7 @@
           logs: [
             ...pending.firstLogs,
             logEntry("diff", "Edit", "Harness mutation before API request 2", `- assistant: ${pending.visibleAssistant}\n+ assistant: ${pending.editedAssistant}`, true, "", LOG_IDS.rewriteMutation),
-            logEntry("api", "Live", "API request 2 in progress", publicRequest(DEFAULT_API_ENDPOINT, pending.secondRequest), true, "", LOG_IDS.rewriteRequest2)
+            logEntry("api", "Live", "API request 2 in progress", publicRequest(configuredApiEndpoint(), pending.secondRequest), true, "", LOG_IDS.rewriteRequest2)
           ]
         });
         try {
@@ -3333,7 +3387,7 @@
           ],
           logs: [
             ...pending.firstLogs,
-            logEntry("api", "Live", "API request 2 in progress", publicRequest(DEFAULT_API_ENDPOINT, pending.secondRequest), true, "", LOG_IDS.callUserRequest2)
+            logEntry("api", "Live", "API request 2 in progress", publicRequest(configuredApiEndpoint(), pending.secondRequest), true, "", LOG_IDS.callUserRequest2)
           ]
         });
         try {
@@ -3471,7 +3525,7 @@
           logs: [
             ...pending.firstLogs,
             pending.toolLog,
-            logEntry("api", "Live", "API request 2 in progress", publicRequest(DEFAULT_API_ENDPOINT, pending.finalRequest), true, "", LOG_IDS.callToolRequest2)
+            logEntry("api", "Live", "API request 2 in progress", publicRequest(configuredApiEndpoint(), pending.finalRequest), true, "", LOG_IDS.callToolRequest2)
           ]
         });
         try {
@@ -4543,6 +4597,11 @@
     apiSettingsClose.addEventListener("click", () => apiSettingsDialog.close());
     apiSettingsClear.addEventListener("click", clearApiSettings);
     apiSettingsForm.addEventListener("submit", saveApiSettings);
+    apiEndpointInput.addEventListener("input", () => {
+      apiEndpointInput.setCustomValidity("");
+      apiKeyInput.setCustomValidity("");
+    });
+    apiKeyInput.addEventListener("input", () => apiKeyInput.setCustomValidity(""));
     apiSettingsDialog.addEventListener("click", (event) => {
       if (event.target === apiSettingsDialog) apiSettingsDialog.close();
     });

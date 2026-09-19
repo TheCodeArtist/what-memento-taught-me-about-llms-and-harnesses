@@ -26,13 +26,15 @@ Open `http://localhost:8080`. Opening `index.html` directly also works in modern
 ## Use the live demos
 
 1. Open the deployed page, which uses the deployment key by default.
-2. Optionally open **API settings** to override the key or model for the current tab.
+2. Optionally open **API settings** to override the endpoint, token, or model for the current tab.
 3. Press the send button in any chat demo.
 
 The default model is `nvidia/nemotron-3-ultra-550b-a55b:free`.
 A local copy still requires a key from the [OpenRouter dashboard](https://openrouter.ai/settings/keys).
 
-The browser sends `POST https://openrouter.ai/api/v1/chat/completions` with the standard bearer-token header plus OpenRouter's optional app-attribution headers. The chosen model must support tool calling for the structured tool-call demo.
+By default, the browser sends `POST https://openrouter.ai/api/v1/chat/completions` with the standard bearer-token header plus OpenRouter's optional app-attribution headers. You can instead enter any OpenAI-compatible API base URL or full `/chat/completions` endpoint. Base URLs are normalized by appending `/chat/completions`; for example, `http://localhost:11434/v1` becomes `http://localhost:11434/v1/chat/completions`.
+
+Custom endpoints are called directly from the browser and must permit the page's origin through CORS. Tokens are optional for servers that do not require authentication. The embedded deployment key is used only for the default OpenRouter endpoint and is never sent to a custom host. The chosen model must support tool calling for the structured tool-call demo.
 
 ## Deploy to GitHub Pages
 
